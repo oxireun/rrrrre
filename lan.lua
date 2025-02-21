@@ -1,1 +1,142 @@
-local _={}for K,V in next,{["\x53\x63\x72\x65\x65\x6e\x47\x75\x69"]="\x53\x63\x72\x65\x65\x6e\x47\x75\x69",["\x46\x72\x61\x6d\x65"]="\x46\x72\x61\x6d\x65",["\x54\x65\x78\x74\x4c\x61\x62\x65\x6c"]="\x54\x65\x78\x74\x4c\x61\x62\x65\x6c",["\x54\x65\x78\x74\x42\x75\x74\x74\x6f\x6e"]="\x54\x65\x78\x74\x42\x75\x74\x74\x6f\x6e",["\x54\x65\x78\x74\x42\x6f\x78"]="\x54\x65\x78\x74\x42\x6f\x78"}do _[K]=Instance.new(V)end _["\x53\x63\x72\x65\x65\x6e\x47\x75\x69"].Parent=game.Players.LocalPlayer:WaitForChild("\x50\x6c\x61\x79\x65\x72\x47\x75\x69")_["\x46\x72\x61\x6d\x65"].Size=UDim2.new(0,250,0,200)_["\x46\x72\x61\x6d\x65"].Position=UDim2.new(0.5,-125,0.5,-100)_["\x46\x72\x61\x6d\x65"].BackgroundColor3=Color3.new(0,0,0)_["\x46\x72\x61\x6d\x65"].BorderSizePixel=2)_["\x46\x72\x61\x6d\x65"].BorderColor3=Color3.new(1,1,1)_["\x46\x72\x61\x6d\x65"].Active=true)_["\x46\x72\x61\x6d\x65"].Draggable=true)_["\x46\x72\x61\x6d\x65"].Parent=_["\x53\x63\x72\x65\x65\x6e\x47\x75\x69"]_["\x54\x65\x78\x74\x4c\x61\x62\x65\x6c"].Size=UDim2.new(1,0,0,30)_["\x54\x65\x78\x74\x4c\x61\x62\x65\x6c"].BackgroundTransparency=1)_["\x54\x65\x78\x74\x4c\x61\x62\x65\x6c"].Text="\x4c\x41\x4e\x43\xc3\x94\x4d\x45\x20\x49\x44\xc3\x94\x4c\x45\x20\x48\x4f\x55\x53\x45"_["\x54\x65\x78\x74\x4c\x61\x62\x65\x6c"].TextColor3=Color3.new(1,1,1)_["\x54\x65\x78\x74\x4c\x61\x62\x65\x6c"].Font=Enum.Font.SourceSansBold)_["\x54\x65\x78\x74\x4c\x61\x62\x65\x6c"].TextSize=16)_["\x54\x65\x78\x74\x4c\x61\x62\x65\x6c"].Position=UDim2.new(0,-15,0,0)_["\x54\x65\x78\x74\x4c\x61\x62\x65\x6c"].Parent=_["\x46\x72\x61\x6d\x65"]_["\x54\x65\x78\x74\x4c\x61\x62\x65\x6c"].Size=UDim2.new(0,100,0,20)_["\x54\x65\x78\x74\x4c\x61\x62\x65\x6c"].Position=UDim2.new(0,0,1,-25)_["\x54\x65\x78\x74\x4c\x61\x62\x65\x6c"].BackgroundTransparency=1)_["\x54\x65\x78\x74\x4c\x61\x62\x65\x6c"].Text="\x59\x74\x3a\x20\x6f\x78\x69\x72\x65\x75\x6e"_["\x54\x65\x78\x74\x4c\x61\x62\x65\x6c"].TextColor3=Color3.new(1,1,1)_["\x54\x65\x78\x74\x4c\x61\x62\x65\x6c"].Font=Enum.Font.SourceSans)_["\x54\x65\x78\x74\x4c\x61\x62\x65\x6c"].TextSize=14)_["\x54\x65\x78\x74\x4c\x61\x62\x65\x6c"].Parent=_["\x46\x72\x61\x6d\x65"]_["\x54\x65\x78\x74\x42\x75\x74\x74\x6f\x6e"].Size=UDim2.new(0,20,0,20)_["\x54\x65\x78\x74\x42\x75\x74\x74\x6f\x6e"].Position=UDim2.new(1,-30,0,3)_["\x54\x65\x78\x74\x42\x75\x74\x74\x6f\x6e"].BackgroundColor3=Color3.new(0,0,1)_["\x54\x65\x78\x74\x42\x75\x74\x74\x6f\x6e"].Text="\x58"_["\x54\x65\x78\x74\x42\x75\x74\x74\x6f\x6e"].TextColor3=Color3.new(1,1,1)_["\x54\x65\x78\x74\x42\x75\x74\x74\x6f\x6e"].Font=Enum.Font.SourceSansBold)_["\x54\x65\x78\x74\x42\x75\x74\x74\x6f\x6e"].TextSize=18)_["\x54\x65\x78\x74\x42\x75\x74\x74\x6f\x6e"].Parent=_["\x46\x72\x61\x6d\x65"]_["\x54\x65\x78\x74\x42\x75\x74\x74\x6f\x6e"].Size=UDim2.new(0,25,0,25)_["\x54\x65\x78\x74\x42\x75\x74\x74\x6f\x6e"].Position=UDim2.new(1,-70,0,0)_["\x54\x65\x78\x74\x42\x75\x74\x74\x6f\x6e"].BackgroundTransparency=1)_["\x54\x65\x78\x74\x42\x75\x74\x74\x6f\x6e"].Text="\x2d"_["\x54\x65\x78\x74\x42\x75\x74\x74\x6f\x6e"].TextColor3=Color3.new(1,1,1)_["\x54\x65\x78\x74\x42\x75\x74\x74\x6f\x6e"].Font=Enum.Font.SourceSansBold)_["\x54\x65\x78\x74\x42\x75\x74\x74\x6f\x6e"].TextSize=20)_["\x54\x65\x78\x74\x42\x75\x74\x74\x6f\x6e"].Parent=_["\x46\x72\x61\x6d\x65"]_["\x54\x65\x78\x74\x42\x75\x74\x74\x6f\x6e"].Size=UDim2.new(0,150,0,40)_["\x54\x65\x78\x74\x42\x75\x74\x74\x6f\x6e"].Position=UDim2.new(0.5,-75,0,100)_["\x54\x65\x78\x74\x42\x75\x74\x74\x6f\x6e"].BackgroundColor3=Color3.new(0,0,1)_["\x54\x65\x78\x74\x42\x75\x74\x74\x6f\x6e"].Text="\x53\x74\x61\x72\x74"_["\x54\x65\x78\x74\x42\x75\x74\x74\x6f\x6e"].TextColor3=Color3.new(1,1,1)_["\x54\x65\x78\x74\x42\x75\x74\x74\x6f\x6e"].Font=Enum.Font.SourceSansBold)_["\x54\x65\x78\x74\x42\x75\x74\x74\x6f\x6e"].TextSize=18)_["\x54\x65\x78\x74\x42\x75\x74\x74\x6f\x6e"].Parent=_["\x46\x72\x61\x6d\x65"]_["\x54\x65\x78\x74\x4c\x61\x62\x65\x6c"].Size=UDim2.new(0,100,0,20)_["\x54\x65\x78\x74\x4c\x61\x62\x65\x6c"].Position=UDim2.new(0,10,0,70)_["\x54\x65\x78\x74\x4c\x61\x62\x65\x6c"].BackgroundTransparency=1)_["\x54\x65\x78\x74\x4c\x61\x62\x65\x6c"].Text="\x53\x70\x65\x65\x64\x3a"_["\x54\x65\x78\x74\x4c\x61\x62\x65\x6c"].TextColor3=Color3.new(1,1,1)_["\x54\x65\x78\x74\x4c\x61\x62\x65\x6c"].Font=Enum.Font.SourceSans)_["\x54\x65\x78\x74\x4c\x61\x62\x65\x6c"].TextSize=14)_["\x54\x65\x78\x74\x4c\x61\x62\x65\x6c"].Parent=_["\x46\x72\x61\x6d\x65"]_["\x54\x65\x78\x74\x42\x6f\x78"].Size=UDim2.new(0,50,0,20)_["\x54\x65\x78\x74\x42\x6f\x78"].Position=UDim2.new(0,120,0,70)_["\x54\x65\x78\x74\x42\x6f\x78"].BackgroundColor3=Color3.new(1,1,1)_["\x54\x65\x78\x74\x42\x6f\x78"].TextColor3=Color3.new(0,0,0)_["\x54\x65\x78\x74\x42\x6f\x78"].Font=Enum.Font.SourceSans)_["\x54\x65\x78\x74\x42\x6f\x78"].TextSize=14)_["\x54\x65\x78\x74\x42\x6f\x78"].Text="\x30\x2e\x31"_["\x54\x65\x78\x74\x42\x6f\x78"].Parent=_["\x46\x72\x61\x6d\x65"]local L=false)_["\x54\x65\x78\x74\x42\x75\x74\x74\x6f\x6e"].MouseButton1Click:Connect(function()if L then _["\x46\x72\x61\x6d\x65"].Size=UDim2.new(0,250,0,200)_["\x54\x65\x78\x74\x42\x75\x74\x74\x6f\x6e"].Visible=true)_["\x54\x65\x78\x74\x4c\x61\x62\x65\x6c"].Visible=true)_["\x54\x65\x78\x74\x4c\x61\x62\x65\x6c"].Visible=true)_["\x54\x65\x78\x74\x42\x6f\x78"].Visible=true)_["\x54\x65\x78\x74\x42\x75\x74\x74\x6f\x6e"].Text="\x2d"else _["\x46\x72\x61\x6d\x65"].Size=UDim2.new(0,250,0,30)_["\x54\x65\x78\x74\x42\x75\x74\x74\x6f\x6e"].Visible=false)_["\x54\x65\x78\x74\x4c\x61\x62\x65\x6c"].Visible=false)_["\x54\x65\x78\x74\x4c\x61\x62\x65\x6c"].Visible=false)_["\x54\x65\x78\x74\x42\x6f\x78"].Visible=false)_["\x54\x65\x78\x74\x42\x75\x74\x74\x6f\x6e"].Text="\x2b"end L=not L end)_["\x54\x65\x78\x74\x42\x75\x74\x74\x6f\x6e"].MouseButton1Click:Connect(function()_["\x53\x63\x72\x65\x65\x6e\x47\x75\x69"]:Destroy()end)local M=false)local N)_["\x54\x65\x78\x74\x42\x75\x74\x74\x6f\x6e"].MouseButton1Click:Connect(function()if M then M=false)_["\x54\x65\x78\x74\x42\x75\x74\x74\x6f\x6e"].Text="\x53\x74\x61\x72\x74"else M=true)_["\x54\x65\x78\x74\x42\x75\x74\x74\x6f\x6e"].Text="\x53\x74\x6f\x70"N=coroutine.create(function()local O=workspace:GetChildren()local P={16,17}local Q=game.Players.LocalPlayer local R=Q.Character or Q.CharacterAdded:Wait()if#O>=17 then if R and R:FindFirstChild("\x48\x75\x6d\x61\x6e\x6f\x69\x64\x52\x6f\x6f\x74\x50\x61\x72\x74")then local S=R.HumanoidRootPart local T={}local U={}for _,V in ipairs(P)do local W=O[V]:FindFirstChild("\x43\x6f\x6c\x6c\x69\x73\x69\x6f\x6e\x73")if W then for _,X in ipairs(W:GetChildren())do if X:IsA("\x42\x61\x73\x65\x50\x61\x72\x74")then table.insert(U,X)end end else warn("\x49\x6c\x67\x69\x6c\x69\x20\x69\x6e\x64\x65\x6b\x73\x64\x65\x20\x27\x43\x6f\x6c\x6c\x69\x73\x69\x6f\x6e\x73\x27\x20\x6b\x6c\x61\x73\xc3\xb6\x72\xc3\xbc\x20\x62\x75\x6c\x75\x6e\x61\x6d\x61\x64\xc4\xb1\x21")end end local function Y()local Z=nil local aa=math.huge for _,ab in ipairs(U)do if not T[ab]then local ac=(S.Position-ab.Position).Magnitude if ac<aa then aa=ac Z=ab end end end if Z then S.CFrame=Z.CFrame+Vector3.new(0,3,0)T[Z]=true return true end return false end local ad=true while ad do if not M then break end ad=Y()task.wait(tonumber(_["\x54\x65\x78\x74\x42\x6f\x78"].Text))end print("\x54\xc3\xbc\x6d\x20\x6e\x65\x73\x6e\x65\x6c\x65\x72\x20\x74\x6f\x70\x6c\x61\x6e\x64\xc4\xb1\x21")local ae={CFrame.new(152.464951,2.91174078,-45.1876373,-0.219859883,8.02032385e-10,0.975531459,6.71054989e-10,1,-6.70910494e-10,-0.975531459,5.0712895e-10,-0.219859883),CFrame.new(-152.022018,2.91176748,89.0239868,-0.930311322,2.55563481e-09,0.366770864,1.13259793e-08,1,2.17603215e-08,-0.366770864,2.4397913e-08,-0.930311322)}for _,af in ipairs(ae)do if not M then break end S.CFrame=af task.wait(2)S.CFrame=S.CFrame+S.CFrame.LookVector*2 task.wait(2)end print("\x43\x46\x72\x61\x6d\x65\x27\x6c\x65\x72\x65\x20\xc4\xb1\xc5\x9f\xc4\xb1\x6e\x6c\x61\x6e\x6d\x61\x20\x76\x65\x20\x68\x61\x72\x65\x6b\x65\x74\x20\x65\x74\x6d\x65\x20\x74\x61\x6d\x61\x6d\x6c\x61\x6e\x64\xc4\xb1\x21")else warn("\x4b\x61\x72\x61\x6b\x74\x65\x72\x20\x76\x65\x79\x61\x20\x48\x75\x6d\x61\x6e\x6f\x69\x64\x52\x6f\x6f\x74\x50\x61\x72\x74\x20\x62\x75\x6c\x75\x6e\x61\x6d\x61\x64\xc4\xb1\x21")end else warn("\x57\x6f\x72\x6b\x73\x70\x61\x63\x65\x20\x69\xc3\xa7\x69\x6e\x64\x65\x20\x65\x6e\x20\x61\x7a\x20\x31\x37\x20\xc3\xb6\xc4\x9f\x65\x20\x79\x6f\x6b\x21")end end)coroutine.resume(N)end end)
+--[==[ Obfuscated Lua Script ]==]
+local a = Instance.new("ScreenGui") 
+a.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
+
+local b = Instance.new("Frame")
+b.Size = UDim2.new(0, 250, 0, 200)
+b.Position = UDim2.new(0.5, -125, 0.5, -100)
+b.BackgroundColor3 = Color3.new(0, 0, 0)
+b.BorderSizePixel = 2
+b.BorderColor3 = Color3.new(1, 1, 1)
+b.Active = true
+b.Draggable = true
+b.Parent = a
+
+local c = Instance.new("TextLabel")
+c.Size = UDim2.new(1, 0, 0, 30)
+c.BackgroundTransparency = 1
+c.Text = "LANCÔME IDÔLE HOUSE"
+c.TextColor3 = Color3.new(1, 1, 1)
+c.Font = Enum.Font.SourceSansBold
+c.TextSize = 16
+c.Position = UDim2.new(0, -15, 0, 0)
+c.Parent = b
+
+local d = Instance.new("TextLabel")
+d.Size = UDim2.new(0, 100, 0, 20)
+d.Position = UDim2.new(0, 0, 1, -25)
+d.BackgroundTransparency = 1
+d.Text = "Yt: oxireun"
+d.TextColor3 = Color3.new(1, 1, 1)
+d.Font = Enum.Font.SourceSans
+d.TextSize = 14
+d.Parent = b
+
+local e = Instance.new("TextButton")
+e.Size = UDim2.new(0, 20, 0, 20)
+e.Position = UDim2.new(1, -30, 0, 3)
+e.BackgroundColor3 = Color3.new(0, 0, 1)
+e.Text = "X"
+e.TextColor3 = Color3.new(1, 1, 1)
+e.Font = Enum.Font.SourceSansBold
+e.TextSize = 18
+e.Parent = b
+
+e.MouseButton1Click:Connect(function()
+    a:Destroy()
+end)
+
+local f = false
+local g = Instance.new("TextButton")
+g.Size = UDim2.new(0, 25, 0, 25)
+g.Position = UDim2.new(1, -70, 0, 0)
+g.BackgroundTransparency = 1
+g.Text = "-"
+g.TextColor3 = Color3.new(1, 1, 1)
+g.Font = Enum.Font.SourceSansBold
+g.TextSize = 20
+g.Parent = b
+
+g.MouseButton1Click:Connect(function()
+    if f then
+        b.Size = UDim2.new(0, 250, 0, 200)
+        d.Visible = true
+        g.Text = "-"
+    else
+        b.Size = UDim2.new(0, 250, 0, 30)
+        d.Visible = false
+        g.Text = "+"
+    end
+    f = not f
+end)
+
+local h = false
+local i
+local function j()
+    local k = workspace:GetChildren()
+    local l = {16, 17}
+    local m = game.Players.LocalPlayer
+    local n = m.Character or m.CharacterAdded:Wait()
+    if #k >= 17 then
+        if n and n:FindFirstChild("HumanoidRootPart") then
+            local o = n.HumanoidRootPart
+            local p = {}
+            local q = {}
+            for _, r in ipairs(l) do
+                local s = k[r]:FindFirstChild("Collisions")
+                if s then
+                    for _, t in ipairs(s:GetChildren()) do
+                        if t:IsA("BasePart") then
+                            table.insert(q, t)
+                        end
+                    end
+                end
+            end
+            local function u()
+                local v, w = nil, math.huge
+                for _, x in ipairs(q) do
+                    if not p[x] then
+                        local y = (o.Position - x.Position).Magnitude
+                        if y < w then
+                            w, v = y, x
+                        end
+                    end
+                end
+                if v then
+                    o.CFrame = v.CFrame + Vector3.new(0, 3, 0)
+                    p[v] = true
+                    return true
+                end
+                return false
+            end
+            local z = true
+            while z do
+                if not h then break end
+                z = u()
+                task.wait(0.1)
+            end
+        end
+    end
+end
+
+local A = Instance.new("TextButton")
+A.Size = UDim2.new(0, 150, 0, 40)
+A.Position = UDim2.new(0.5, -75, 0, 100)
+A.BackgroundColor3 = Color3.new(0, 0, 1)
+A.Text = "Start"
+A.TextColor3 = Color3.new(1, 1, 1)
+A.Font = Enum.Font.SourceSansBold
+A.TextSize = 18
+A.Parent = b
+
+A.MouseButton1Click:Connect(function()
+    if h then
+        h = false
+        A.Text = "Start"
+    else
+        h = true
+        A.Text = "Stop"
+        i = coroutine.create(j)
+        coroutine.resume(i)
+    end
+end)
