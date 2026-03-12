@@ -39,7 +39,7 @@ end
 -- EXECUTOR ÖZEL: KUSURSUZ VE KASMAYAN HOOK'LAR
 -- ==========================================
 local CapturedArgs = {}
-local CapturedPortals = {} -- GİRİLEN PORTALLARI YAKALAMAK İÇİN
+local CapturedPortals = {} 
 local BlockTeleportEnabled = false
 
 LocalPlayer.Idled:Connect(function()
@@ -117,29 +117,6 @@ pcall(function()
 		return oldIndex(self, key)
 	end)
 end)
-
-local function Serialize(val, indent)
-	local t = typeof(val)
-	local indentStr = string.rep("    ", indent)
-	local nextIndentStr = string.rep("    ", indent + 1)
-	
-	if t == "string" then return string.format('"%s"', val:gsub('"', '\\"'):gsub("\n", "\\n"))
-	elseif t == "number" or t == "boolean" then return tostring(val)
-	elseif t == "Instance" then return FormatPath(val)
-	elseif t == "EnumItem" then return tostring(val)
-	elseif t == "table" then
-		local str = "{\n"
-		for k, v in pairs(val) do
-			local keyStr = ""
-			if type(k) == "number" then keyStr = "[" .. k .. "]"
-			elseif type(k) == "string" then keyStr = '["' .. k .. '"]'
-			else keyStr = '["' .. tostring(k) .. '"]' end
-			str = str .. nextIndentStr .. keyStr .. " = " .. Serialize(v, indent + 1) .. ";\n"
-		end
-		str = str .. indentStr .. "}"
-		return str
-	else return "nil --[[" .. t .. "]]" end
-end
 
 -- ==========================================
 -- 0 VE 1 MATRIX EFEKTİ FONKSİYONU
@@ -451,7 +428,7 @@ TopCreditsBtn.MouseButton1Click:Connect(function()
 end)
 
 -- ==========================================
--- KONTROL BÖLÜMÜ
+-- KONTROL BÖLÜMÜ (GEREKSİZLER SİLİNDİ)
 -- ==========================================
 local ControlContainer = Instance.new("Frame")
 ControlContainer.Size = UDim2.new(1, -115, 0, 100) 
@@ -461,7 +438,7 @@ ControlContainer.ZIndex = 2
 ControlContainer.Parent = MainFrame
 
 local SearchBox = Instance.new("TextBox")
-SearchBox.Size = UDim2.new(0.25, -5, 0, 28)
+SearchBox.Size = UDim2.new(0.5, -4, 0, 28)
 SearchBox.Position = UDim2.new(0, 0, 0, 0)
 SearchBox.BackgroundColor3 = Color3.fromRGB(25, 15, 30)
 SearchBox.PlaceholderText = "Search Remote..."
@@ -475,24 +452,9 @@ SearchBox.Parent = ControlContainer
 Instance.new("UICorner", SearchBox).CornerRadius = UDim.new(0, 6)
 AddStroke(SearchBox, Color3.fromRGB(100, 40, 150), 1)
 
-local ArgInput = Instance.new("TextBox")
-ArgInput.Size = UDim2.new(0.25, -5, 0, 28)
-ArgInput.Position = UDim2.new(0.25, 1, 0, 0)
-ArgInput.BackgroundColor3 = Color3.fromRGB(25, 15, 30)
-ArgInput.PlaceholderText = "ID / Arg"
-ArgInput.Text = ""
-ArgInput.TextColor3 = Color3.new(1,1,1)
-ArgInput.PlaceholderColor3 = Color3.fromRGB(150, 150, 150)
-ArgInput.Font = Enum.Font.Gotham
-ArgInput.TextSize = 12
-ArgInput.ZIndex = 2
-ArgInput.Parent = ControlContainer
-Instance.new("UICorner", ArgInput).CornerRadius = UDim.new(0, 6)
-AddStroke(ArgInput, Color3.fromRGB(100, 40, 150), 1)
-
 local DelayInput = Instance.new("TextBox")
-DelayInput.Size = UDim2.new(0.25, -5, 0, 28)
-DelayInput.Position = UDim2.new(0.5, 2, 0, 0)
+DelayInput.Size = UDim2.new(0.5, -4, 0, 28)
+DelayInput.Position = UDim2.new(0.5, 4, 0, 0)
 DelayInput.BackgroundColor3 = Color3.fromRGB(25, 15, 30)
 DelayInput.PlaceholderText = "Time Delay"
 DelayInput.Text = ""
@@ -504,26 +466,6 @@ DelayInput.ZIndex = 2
 DelayInput.Parent = ControlContainer
 Instance.new("UICorner", DelayInput).CornerRadius = UDim.new(0, 6)
 AddStroke(DelayInput, Color3.fromRGB(100, 40, 150), 1)
-
-local AddTypeBtn = Instance.new("TextButton")
-AddTypeBtn.Size = UDim2.new(0.25, -5, 0, 28)
-AddTypeBtn.Position = UDim2.new(0.75, 3, 0, 0)
-AddTypeBtn.BackgroundColor3 = Color3.fromRGB(30, 15, 40)
-AddTypeBtn.Text = "Add Type"
-AddTypeBtn.TextColor3 = Color3.fromRGB(255, 100, 100)
-AddTypeBtn.Font = Enum.Font.GothamBold
-AddTypeBtn.TextSize = 12
-AddTypeBtn.ZIndex = 2
-AddTypeBtn.Parent = ControlContainer
-Instance.new("UICorner", AddTypeBtn).CornerRadius = UDim.new(0, 6)
-AddStroke(AddTypeBtn, Color3.fromRGB(100, 40, 150), 1)
-
-local AddTypeEnabled = false
-AddTypeBtn.MouseButton1Click:Connect(function()
-	AddTypeEnabled = not AddTypeEnabled
-	if AddTypeEnabled then AddTypeBtn.TextColor3 = Color3.fromRGB(100, 255, 100)
-	else AddTypeBtn.TextColor3 = Color3.fromRGB(255, 100, 100) end
-end)
 
 local ToggleFrame = Instance.new("Frame")
 ToggleFrame.Size = UDim2.new(1, 0, 0, 28)
@@ -540,7 +482,7 @@ ToggleLayout.Parent = ToggleFrame
 
 local function CreateToggleBtn(text, color)
 	local btn = Instance.new("TextButton")
-	btn.Size = UDim2.new(0.25, -6, 1, 0)
+	btn.Size = UDim2.new(0.33, -5, 1, 0)
 	btn.BackgroundColor3 = Color3.fromRGB(30, 15, 40)
 	btn.Text = text
 	btn.TextColor3 = color
@@ -555,7 +497,6 @@ end
 
 local LoopEventsBtn = CreateToggleBtn("Loop Events", Color3.fromRGB(255, 100, 100))
 local LoopFuncsBtn = CreateToggleBtn("Loop Funcs", Color3.fromRGB(255, 100, 100))
-local NameToggleBtn = CreateToggleBtn("Name", Color3.fromRGB(255, 100, 100))
 local BlockTpBtn = CreateToggleBtn("Anti Teleport", Color3.fromRGB(255, 100, 100))
 
 local RefreshBtn = Instance.new("TextButton")
@@ -598,64 +539,6 @@ end)
 local FoundRemotes = {} 
 local LoopingEvents = false
 local LoopingFuncs = false
-local ForceString = false
-
-local function GetArguments()
-	local text = ArgInput.Text
-	local args = {}
-	if text ~= "" then
-		if ForceString then
-			table.insert(args, tostring(text))
-		else
-			local numberValue = tonumber(text)
-			if numberValue then table.insert(args, numberValue) else table.insert(args, text) end
-		end
-	end
-	if AddTypeEnabled then
-		table.insert(args, Enum.MarketplaceProductType.AvatarAsset)
-	end
-	return args
-end
-
-local function ExtractRemoteArgsStatically(remote)
-	local extracted = {}
-	local remoteName = remote.Name
-	local isEvent = remote:IsA("RemoteEvent")
-	local targetMethod = isEvent and "FireServer" or "InvokeServer"
-	
-	local filter = {[targetMethod] = true,[remoteName] = true,["game"] = true,["GetService"] = true,["Workspace"] = true,["ReplicatedStorage"] = true, ["Players"] = true,["LocalPlayer"] = true, ["WaitForChild"] = true,["FindFirstChild"] = true,["math"] = true,["string"] = true,["table"] = true,["require"] = true,["print"] = true,["warn"] = true,["Instance"] = true,["Color3"] = true,["Vector3"] = true, ["CFrame"] = true,["UDim2"] = true,["RaycastParams"] = true,
-		["Enum"] = true, ["Fire"] = true,["Invoke"] = true,["GetChildren"] = true,["GetDescendants"] = true,["IsA"] = true,["Clone"] = true,["Destroy"] = true,
-		["Parent"] = true,["Name"] = true,["Value"] = true, ["tick"] = true, ["wait"] = true
-	}
-
-	pcall(function()
-		for _, v in pairs(getgc(true)) do
-			if type(v) == "function" and islclosure(v) then
-				local s, consts = pcall(debug.getconstants, v)
-				if s and consts then
-					local hasRemote = false
-					local hasMethod = false
-					for _, c in pairs(consts) do
-						if c == remoteName then hasRemote = true end
-						if c == targetMethod then hasMethod = true end
-					end
-					
-					if hasRemote and hasMethod then
-						for _, c in pairs(consts) do
-							if type(c) == "string" and not filter[c] and #c > 0 and not c:match("^rbxasset") then
-								table.insert(extracted, c)
-							elseif type(c) == "number" then
-								table.insert(extracted, c)
-							end
-						end
-						break 
-					end
-				end
-			end
-		end
-	end)
-	return extracted
-end
 
 local function FindScriptForRemote(remoteName)
 	local foundPath = nil
@@ -710,7 +593,7 @@ local function CreateRemoteItem(remote, rType)
 	Icon.Parent = Item
 
 	local NameLabel = Instance.new("TextLabel")
-	NameLabel.Size = UDim2.new(1, -250, 1, 0) 
+	NameLabel.Size = UDim2.new(1, -220, 1, 0) 
 	NameLabel.Position = UDim2.new(0, 40, 0, 0)
 	NameLabel.BackgroundTransparency = 1
 	NameLabel.Text = remote.Name
@@ -723,8 +606,8 @@ local function CreateRemoteItem(remote, rType)
 	NameLabel.Parent = Item
 	
 	local BtnContainer = Instance.new("Frame")
-	BtnContainer.Size = UDim2.new(0, 215, 1, -10)
-	BtnContainer.Position = UDim2.new(1, -220, 0, 5)
+	BtnContainer.Size = UDim2.new(0, 200, 1, -10)
+	BtnContainer.Position = UDim2.new(1, -205, 0, 5)
 	BtnContainer.BackgroundTransparency = 1
 	BtnContainer.ZIndex = 2
 	BtnContainer.Parent = Item
@@ -739,7 +622,7 @@ local function CreateRemoteItem(remote, rType)
 
 	local function CreateItemBtn(text, color, strokeColor)
 		local btn = Instance.new("TextButton")
-		btn.Size = UDim2.new(0, 40, 1, 0)
+		btn.Size = UDim2.new(0, 45, 1, 0)
 		btn.BackgroundColor3 = color
 		btn.Text = text
 		btn.TextColor3 = Color3.new(1,1,1)
@@ -771,38 +654,6 @@ local function CreateRemoteItem(remote, rType)
 		ScriptBtn.TextColor3 = Color3.new(1,1,1)
 	end)
 
-	local ArgBtn = CreateItemBtn("Arg", Color3.fromRGB(40, 30, 50), Color3.fromRGB(80, 50, 100))
-	ArgBtn.MouseButton1Click:Connect(function()
-		ArgBtn.Text = "Wait.."
-		task.wait(0.1)
-		local method = rType == "RemoteEvent" and "FireServer" or "InvokeServer"
-		local fullPath = FormatPath(remote)
-		local formattedCode = "---Remote Detector V1\n"
-		
-		if CapturedArgs[remote] then formattedCode = formattedCode .. "local args = " .. Serialize(CapturedArgs[remote], 0) .. "\n\n"
-		else
-			local staticArgs = ExtractRemoteArgsStatically(remote)
-			formattedCode = formattedCode .. "local args = {\n"
-			if #staticArgs > 0 then
-				for i, val in ipairs(staticArgs) do
-					if type(val) == "string" then formattedCode = formattedCode .. '[' .. i .. '] = "' .. val:gsub('"', '\\"') .. '";\n'
-					else formattedCode = formattedCode .. '[' .. i .. '] = ' .. tostring(val) .. ';\n' end
-				end
-			else formattedCode = formattedCode .. "    -- No arguments\n" end
-			formattedCode = formattedCode .. "}\n\n"
-		end
-		
-		formattedCode = formattedCode .. fullPath .. ":" .. method .. "(unpack(args))"
-		setclipboard(formattedCode) 
-		ArgBtn.BackgroundColor3 = Color3.fromRGB(40, 120, 60)
-		ArgBtn.Text = "Copied!"
-		ArgBtn.TextColor3 = Color3.fromRGB(100, 255, 100)
-		task.wait(1.5)
-		ArgBtn.BackgroundColor3 = Color3.fromRGB(40, 30, 50)
-		ArgBtn.Text = "Arg"
-		ArgBtn.TextColor3 = Color3.new(1,1,1)
-	end)
-
 	local BlockBtn = CreateItemBtn("Block", Color3.fromRGB(50, 30, 60), Color3.fromRGB(100, 40, 120))
 	BlockBtn.MouseButton1Click:Connect(function()
 		dataRef.Blocked = not dataRef.Blocked
@@ -819,30 +670,10 @@ local function CreateRemoteItem(remote, rType)
 	
 	local CopyBtn = CreateItemBtn("Copy", Color3.fromRGB(50, 30, 60), Color3.fromRGB(100, 40, 120))
 	CopyBtn.MouseButton1Click:Connect(function()
-		local argsList = {}
-		local inputVal = ArgInput.Text
-		if inputVal ~= "" then
-			if ForceString then 
-				table.insert(argsList, '"' .. inputVal .. '"')
-			else 
-				if tonumber(inputVal) then 
-					table.insert(argsList, inputVal) 
-				else 
-					table.insert(argsList, '"' .. inputVal .. '"') 
-				end 
-			end
-		end
-		
-		if AddTypeEnabled then
-			table.insert(argsList, "Enum.MarketplaceProductType.AvatarAsset")
-		end
-		
-		local argsText = #argsList > 0 and table.concat(argsList, ", ") or "..."
-		
 		local path = FormatPath(remote)
 		local scriptText = "---Remote Detector V1\n"
-		if rType == "RemoteEvent" then scriptText = scriptText .. string.format('%s:FireServer(%s)', path, argsText)
-		else scriptText = scriptText .. string.format('%s:InvokeServer(%s)', path, argsText) end
+		if rType == "RemoteEvent" then scriptText = scriptText .. string.format('%s:FireServer()', path)
+		else scriptText = scriptText .. string.format('%s:InvokeServer()', path) end
 		setclipboard(scriptText)
 		CopyBtn.Text = "Copied!"
 		CopyBtn.TextColor3 = Color3.fromRGB(0, 255, 0)
@@ -854,9 +685,8 @@ local function CreateRemoteItem(remote, rType)
 	local RunBtn = CreateItemBtn("Run", Color3.fromRGB(0, 110, 200), Color3.fromRGB(0, 140, 255))
 	RunBtn.MouseButton1Click:Connect(function()
 		if dataRef.Blocked then return end
-		local args = GetArguments()
-		if rType == "RemoteEvent" then remote:FireServer(unpack(args))
-		else task.spawn(function() remote:InvokeServer(unpack(args)) end) end
+		if rType == "RemoteEvent" then remote:FireServer()
+		else task.spawn(function() remote:InvokeServer() end) end
 		RunBtn.BackgroundColor3 = Color3.fromRGB(0, 180, 100)
 		task.wait(0.2)
 		RunBtn.BackgroundColor3 = Color3.fromRGB(0, 110, 200)
@@ -901,11 +731,10 @@ task.spawn(function()
 		local delayVal = tonumber(DelayInput.Text) or 0.05
 		
 		if LoopingEvents then
-			local args = GetArguments()
 			for _, data in pairs(FoundRemotes) do
 				if not LoopingEvents then break end
 				if data.Type == "RemoteEvent" and not data.Blocked then
-					pcall(function() data.Obj:FireServer(unpack(args)) end)
+					pcall(function() data.Obj:FireServer() end)
 					isIdle = false
 					task.wait(delayVal)
 				end
@@ -913,11 +742,10 @@ task.spawn(function()
 		end
 		
 		if LoopingFuncs then
-			local args = GetArguments()
 			for _, data in pairs(FoundRemotes) do
 				if not LoopingFuncs then break end
 				if data.Type == "RemoteFunction" and not data.Blocked then
-					pcall(function() task.spawn(function() data.Obj:InvokeServer(unpack(args)) end) end)
+					pcall(function() task.spawn(function() data.Obj:InvokeServer() end) end)
 					isIdle = false
 					task.wait(delayVal)
 				end
@@ -938,12 +766,6 @@ LoopFuncsBtn.MouseButton1Click:Connect(function()
 	LoopingFuncs = not LoopingFuncs
 	if LoopingFuncs then LoopFuncsBtn.TextColor3 = Color3.fromRGB(100, 255, 100)
 	else LoopFuncsBtn.TextColor3 = Color3.fromRGB(255, 100, 100) end
-end)
-
-NameToggleBtn.MouseButton1Click:Connect(function()
-	ForceString = not ForceString
-	if ForceString then NameToggleBtn.TextColor3 = Color3.fromRGB(100, 255, 100)
-	else NameToggleBtn.TextColor3 = Color3.fromRGB(255, 100, 100) end
 end)
 
 BlockTpBtn.MouseButton1Click:Connect(function()
@@ -1255,35 +1077,37 @@ local function IsLinkedToUniverse(assetId)
 	return false
 end
 
+-- MÜKEMMELLEŞTİRİLMİŞ REGEX TABANLI MEMORY TARAYICI
 local function CollectInGameNumbers()
 	local nums = {}
+	local function extract(str)
+		if type(str) == "string" or type(str) == "number" then
+			for match in string.gmatch(tostring(str), "%d+") do
+				local n = tonumber(match)
+				if n and n > 100000 then nums[n] = true end
+			end
+		end
+	end
+
 	local function scan(parent)
 		local descendants = parent:GetDescendants()
 		for i, v in ipairs(descendants) do
 			if i % 1500 == 0 then task.wait() end 
 			pcall(function()
-				if v:IsA("ValueBase") then
-					local n = tonumber(v.Value)
-					if n and n > 10000000 then nums[n] = true end
-				end
-				for _, attr in pairs(v:GetAttributes()) do
-					local n = tonumber(attr)
-					if n and n > 10000000 then nums[n] = true end
-				end
-				if v:IsA("ProximityPrompt") then
-					local n1 = tonumber(v.ObjectText)
-					local n2 = tonumber(v.ActionText)
-					if n1 and n1 > 10000000 then nums[n1] = true end
-					if n2 and n2 > 10000000 then nums[n2] = true end
-				end
-				local nName = tonumber(v.Name)
-				if nName and nName > 10000000 then nums[nName] = true end
+				extract(v.Name)
+				if v:IsA("ValueBase") then extract(v.Value) end
+				if v:IsA("TextLabel") or v:IsA("TextButton") or v:IsA("TextBox") then extract(v.Text) end
+				if v:IsA("ImageLabel") or v:IsA("ImageButton") or v:IsA("Decal") or v:IsA("Texture") then extract(v.Image or v.Texture) end
+				if v:IsA("MeshPart") or v:IsA("SpecialMesh") then extract(v.MeshId) end
+				if v:IsA("ProximityPrompt") then extract(v.ObjectText); extract(v.ActionText) end
+				for _, attr in pairs(v:GetAttributes()) do extract(attr) end
 			end)
 		end
 	end
 	pcall(function() scan(game:GetService("Workspace")) end)
 	pcall(function() scan(game:GetService("ReplicatedStorage")) end)
 	pcall(function() scan(LocalPlayer:WaitForChild("PlayerGui")) end)
+	pcall(function() scan(game:GetService("Lighting")) end)
 	
 	pcall(function()
 		local gc = getgc(true)
@@ -1293,12 +1117,7 @@ local function CollectInGameNumbers()
 				local s, consts = pcall(debug.getconstants, v)
 				if s and consts then
 					for _, c in pairs(consts) do
-						if type(c) == "number" and c > 10000000 then
-							nums[c] = true
-						elseif type(c) == "string" then
-							local n = tonumber(c)
-							if n and n > 10000000 then nums[n] = true end
-						end
+						extract(c)
 					end
 				end
 			end
@@ -1332,6 +1151,7 @@ local function LoadUGCsData(forceRefresh)
 	local placeId = game.PlaceId
 	
 	local url1 = "https://catalog.roproxy.com/v1/search/items?category=All&creatorTargetId="..creatorId.."&creatorType="..creatorType.."&sortType=Updated&sortOrder=Desc&limit=120"
+	local url1_asc = "https://catalog.roproxy.com/v1/search/items?category=All&creatorTargetId="..creatorId.."&creatorType="..creatorType.."&sortType=Updated&sortOrder=Asc&limit=120"
 	local url2 = "https://catalog.roproxy.com/v1/search/items?category=All&keyword="..HttpService:UrlEncode(shortGameName).."&sortType=Updated&sortOrder=Desc&limit=60"
 	local url3 = "https://catalog.roproxy.com/v1/search/items?category=All&keyword="..tostring(universeId).."&sortType=Updated&sortOrder=Desc&limit=60"
 	local url4 = "https://catalog.roproxy.com/v1/search/items?category=All&keyword="..tostring(placeId).."&sortType=Updated&sortOrder=Desc&limit=60"
@@ -1359,6 +1179,7 @@ local function LoadUGCsData(forceRefresh)
 		end
 
 		fetchURL(url1)
+		fetchURL(url1_asc)
 		fetchURL(url2)
 		fetchURL(url3)
 		fetchURL(url4)
@@ -1721,7 +1542,6 @@ local function CreateGameCard(id, name, thumbUrl)
 				pcall(function() TeleportService:Teleport(id, LocalPlayer) end)
 				task.wait(0.5)
 			end
-			-- 3 saniye sonra dur ve butonu eski haline getir
 			if TeleportBtn then
 				TeleportBtn.Text = "Teleport"
 				TeleportBtn.BackgroundColor3 = Color3.fromRGB(0, 110, 200)
@@ -1782,7 +1602,6 @@ local function LoadGamesData(forceRefresh)
 			end
 		end
 
-		-- 1. Universe API Taraması (Güvenilir Kaynak)
 		local url = "https://develop.roproxy.com/v1/universes/" .. game.GameId .. "/places?isUniverseCreation=false&limit=100&sortOrder=Asc"
 		local s, res = pcall(function() return game:HttpGet(url) end)
 		if s and res then
@@ -1794,12 +1613,10 @@ local function LoadGamesData(forceRefresh)
 			end
 		end
 
-		-- 2. Işınlanma Hook ile Yakalanan Portallar (Güvenilir Kaynak - Oyuncu denedi)
 		for pId, _ in pairs(CapturedPortals) do
 			addPlace(pId, true)
 		end
 
-		-- 3. Oyun İçi Memory Taraması (STRICT FILTER: Yalnızca Aynı Yapımcıysa Ekler)
 		local inGameNums = CollectInGameNumbers()
 		for pId, _ in pairs(inGameNums) do
 			addPlace(pId, false)
@@ -1817,13 +1634,9 @@ local function LoadGamesData(forceRefresh)
 				if success and info and info.AssetTypeId == 9 then
 					local isValid = false
 					
-					-- Eğer API veya Portal verisinden geldiyse direkt onaylanır
 					if data.trusted then
 						isValid = true
 					else
-						-- KUSURSUZ FİLTRE: Eğer sadece oyun içi sayı taramasında bulunduysa,
-						-- Oyunun orijinal yapımcısı ile bu sayının yapımcısı aynı Mı? kontrol edilir.
-						-- Aynı değilse, çöptür eklenmez.
 						if info.Creator and tostring(info.Creator.CreatorTargetId) == tostring(game.CreatorId) then
 							isValid = true
 						end
