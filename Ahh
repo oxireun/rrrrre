@@ -1,1 +1,2120 @@
-..
+-- Remote Detector V1 - Ultimate Anti-Kick, Anti-TP & Spy Edition
+-- Developed by oxireun
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local CoreGui = game:GetService("CoreGui")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local TeleportService = game:GetService("TeleportService")
+local VirtualUser = game:GetService("VirtualUser")
+local HttpService = game:GetService("HttpService")
+local MarketplaceService = game:GetService("MarketplaceService")
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "RemoteDetector"
+ScreenGui.ResetOnSpawn = false
+pcall(function() ScreenGui.Parent = CoreGui end)
+if not ScreenGui.Parent then ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui") end
+
+local function AddStroke(parent, color, thickness)
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = color or Color3.fromRGB(60, 60, 65)
+	stroke.Thickness = thickness or 1
+	stroke.LineJoinMode = Enum.LineJoinMode.Round 
+	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	stroke.Parent = parent
+	return stroke
+end
+
+local function FormatPath(obj)
+	local path = obj:GetFullName()
+	if path:sub(1, 17) == "ReplicatedStorage" then
+		return 'game:GetService("ReplicatedStorage")' .. path:sub(18)
+	end
+	return "game." .. path
+end
+
+-- ==========================================
+-- EXECUTOR ÖZEL: KUSURSUZ VE KASMAYAN HOOK'LAR
+-- ==========================================
+local CapturedArgs = {}
+local CapturedPortals = {} -- GİRİLEN PORTALLARI YAKALAMAK İÇİN
+local BlockTeleportEnabled = false
+
+LocalPlayer.Idled:Connect(function()
+	VirtualUser:CaptureController()
+	VirtualUser:ClickButton2(Vector2.new())
+end)
+
+local queueonteleport = queue_on_teleport or queueonteleport
+if queueonteleport then
+	queueonteleport([[
+		local old
+		old = hookmetamethod(game, "__namecall", function(self, ...)
+			if getnamecallmethod() == "Kick" then return end
+			return old(self, ...)
+		end)
+	]])
+end
+
+pcall(function()
+	local oldNamecall
+	oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
+		local method = tostring(getnamecallmethod())
+		
+		if method == "Kick" then return end
+
+		if self == TeleportService and string.find(method, "Teleport") then
+			local args = {...}
+			local pId = nil
+			if type(args[1]) == "number" then pId = args[1]
+			elseif type(args[2]) == "number" then pId = args[2] end
+			if pId then CapturedPortals[pId] = true end
+			
+			if BlockTeleportEnabled and not checkcaller() then
+				return nil 
+			end
+		end
+
+		if BlockTeleportEnabled and not checkcaller() then
+			if (method == "PivotTo" or method == "MoveTo" or method == "SetPrimaryPartCFrame") then
+				local char = LocalPlayer.Character
+				if char then
+					if self == char or (self.Name == "HumanoidRootPart" and self.Parent == char) then
+						return nil
+					end
+				end
+			end
+		end
+
+		if not checkcaller() and (method == "FireServer" or method == "InvokeServer") then
+			CapturedArgs[self] = {...}
+		end
+		
+		return oldNamecall(self, ...)
+	end)
+
+	local oldNewIndex
+	oldNewIndex = hookmetamethod(game, "__newindex", function(self, key, value)
+		if BlockTeleportEnabled and not checkcaller() and (key == "CFrame" or key == "Position") then
+			local char = LocalPlayer.Character
+			if char then
+				if self == char then return end
+				if self.Name == "HumanoidRootPart" and self.Parent == char then return end
+			end
+		end
+		return oldNewIndex(self, key, value)
+	end)
+
+	local oldIndex
+	oldIndex = hookmetamethod(game, "__index", function(self, key)
+		if BlockTeleportEnabled and not checkcaller() and self == TeleportService then
+			if type(key) == "string" and string.find(key, "Teleport") then
+				return function() return nil end
+			end
+		end
+		return oldIndex(self, key)
+	end)
+end)
+
+local function Serialize(val, indent)
+	local t = typeof(val)
+	local indentStr = string.rep("    ", indent)
+	local nextIndentStr = string.rep("    ", indent + 1)
+	
+	if t == "string" then return string.format('"%s"', val:gsub('"', '\\"'):gsub("\n", "\\n"))
+	elseif t == "number" or t == "boolean" then return tostring(val)
+	elseif t == "Instance" then return FormatPath(val)
+	elseif t == "EnumItem" then return tostring(val)
+	elseif t == "table" then
+		local str = "{\n"
+		for k, v in pairs(val) do
+			local keyStr = ""
+			if type(k) == "number" then keyStr = "[" .. k .. "]"
+			elseif type(k) == "string" then keyStr = '["' .. k .. '"]'
+			else keyStr = '["' .. tostring(k) .. '"]' end
+			str = str .. nextIndentStr .. keyStr .. " = " .. Serialize(v, indent + 1) .. ";\n"
+		end
+		str = str .. indentStr .. "}"
+		return str
+	else return "nil --[[" .. t .. "]]" end
+end
+
+-- ==========================================
+-- 0 VE 1 MATRIX EFEKTİ FONKSİYONU
+-- ==========================================
+local function StartMatrixEffect(container)
+	task.spawn(function()
+		while container.Parent do
+			if not container.Visible and container.Name ~= "SplashMatrix" then task.wait(0.2) continue end
+			local drop = Instance.new("TextLabel")
+			drop.Text = math.random() > 0.5 and "0" or "1"
+			drop.TextColor3 = Color3.fromRGB(150, 40, 255) 
+			drop.TextTransparency = 0.6
+			drop.BackgroundTransparency = 1
+			drop.Size = UDim2.new(0, 20, 0, 20)
+			drop.Position = UDim2.new(math.random(0, 100) / 100, 0, -0.1, 0)
+			drop.Font = Enum.Font.Code
+			drop.TextSize = math.random(14, 22)
+			drop.ZIndex = container.ZIndex or 0
+			drop.Parent = container
+			
+			local duration = math.random(3, 6)
+			local tween = TweenService:Create(drop, TweenInfo.new(duration, Enum.EasingStyle.Linear), {
+				Position = UDim2.new(drop.Position.X.Scale, 0, 1.1, 0),
+				TextTransparency = 1
+			})
+			tween:Play()
+			tween.Completed:Connect(function() drop:Destroy() end)
+			task.wait(0.12)
+		end
+	end)
+end
+
+-- ==========================================
+-- ANA ÇERÇEVE
+-- ==========================================
+local MainFrame = Instance.new("Frame")
+MainFrame.Size = UDim2.new(0.65, 0, 0.94, 0) 
+MainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+MainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+MainFrame.BackgroundColor3 = Color3.fromRGB(255, 255, 255) 
+MainFrame.BorderSizePixel = 0
+MainFrame.Active = true
+MainFrame.Draggable = true 
+MainFrame.ClipsDescendants = true
+MainFrame.Visible = false
+MainFrame.Parent = ScreenGui
+
+local MainCorner = Instance.new("UICorner")
+MainCorner.CornerRadius = UDim.new(0, 8)
+MainCorner.Parent = MainFrame
+
+local MainGradient = Instance.new("UIGradient")
+MainGradient.Color = ColorSequence.new({
+	ColorSequenceKeypoint.new(0, Color3.fromRGB(15, 12, 22)),
+	ColorSequenceKeypoint.new(0.4, Color3.fromRGB(15, 12, 22)),
+	ColorSequenceKeypoint.new(0.5, Color3.fromRGB(100, 20, 180)), 
+	ColorSequenceKeypoint.new(0.6, Color3.fromRGB(15, 12, 22)),
+	ColorSequenceKeypoint.new(1, Color3.fromRGB(15, 12, 22))
+})
+MainGradient.Rotation = 45
+MainGradient.Parent = MainFrame
+
+local MainStroke = AddStroke(MainFrame, Color3.fromRGB(255, 255, 255), 2)
+local StrokeGradient = Instance.new("UIGradient")
+StrokeGradient.Color = ColorSequence.new({
+	ColorSequenceKeypoint.new(0, Color3.fromRGB(30, 0, 60)),
+	ColorSequenceKeypoint.new(0.5, Color3.fromRGB(150, 40, 255)), 
+	ColorSequenceKeypoint.new(1, Color3.fromRGB(30, 0, 60))
+})
+StrokeGradient.Parent = MainStroke
+
+RunService.RenderStepped:Connect(function()
+	local t = tick()
+	MainGradient.Offset = Vector2.new(math.sin(t * 0.5) * 0.7, math.cos(t * 0.5) * 0.7)
+	StrokeGradient.Rotation = (t * 60) % 360
+end)
+
+local MatrixContainer = Instance.new("Frame")
+MatrixContainer.Size = UDim2.new(1, 0, 1, 0)
+MatrixContainer.BackgroundTransparency = 1
+MatrixContainer.ZIndex = 0
+MatrixContainer.Parent = MainFrame
+StartMatrixEffect(MatrixContainer)
+
+-- ==========================================
+-- ÜST BAR VE BUTONLAR 
+-- ==========================================
+local TopBar = Instance.new("Frame")
+TopBar.Size = UDim2.new(1, 0, 0, 40) 
+TopBar.Position = UDim2.new(0, 0, 0, 0)
+TopBar.BackgroundColor3 = Color3.fromRGB(10, 8, 15)
+TopBar.BackgroundTransparency = 0.1
+TopBar.BorderSizePixel = 0
+TopBar.ZIndex = 5
+TopBar.Parent = MainFrame
+
+local TopCreditsBtn = Instance.new("TextButton")
+TopCreditsBtn.Size = UDim2.new(0, 30, 0, 30)
+TopCreditsBtn.Position = UDim2.new(0, 10, 0.5, -15) 
+TopCreditsBtn.BackgroundColor3 = Color3.fromRGB(30, 15, 45)
+TopCreditsBtn.Text = "ℹ"
+TopCreditsBtn.TextColor3 = Color3.fromRGB(200, 150, 255)
+TopCreditsBtn.Font = Enum.Font.GothamBold
+TopCreditsBtn.TextSize = 16
+TopCreditsBtn.ZIndex = 5
+TopCreditsBtn.Parent = TopBar
+Instance.new("UICorner", TopCreditsBtn).CornerRadius = UDim.new(1, 0) 
+AddStroke(TopCreditsBtn, Color3.fromRGB(100, 40, 150), 1)
+
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(0.5, 0, 1, 0)
+Title.Position = UDim2.new(0, 50, 0, 0) 
+Title.BackgroundTransparency = 1
+Title.Text = "Remote Detector V1"
+Title.TextColor3 = Color3.fromRGB(240, 240, 240)
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 16
+Title.ZIndex = 5
+Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.Parent = TopBar
+
+local function CreateTopBtn(text, posOffset)
+	local btn = Instance.new("TextButton")
+	btn.Size = UDim2.new(0, 30, 0, 30)
+	btn.Position = UDim2.new(1, posOffset, 0.5, -15)
+	btn.BackgroundColor3 = Color3.fromRGB(30, 15, 45)
+	btn.Text = text
+	btn.TextColor3 = Color3.fromRGB(200, 150, 255)
+	btn.Font = Enum.Font.GothamBold
+	btn.TextSize = 14
+	btn.ZIndex = 5
+	btn.Parent = TopBar
+	Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+	AddStroke(btn, Color3.fromRGB(100, 40, 150), 1)
+	btn.MouseEnter:Connect(function() btn.BackgroundColor3 = Color3.fromRGB(50, 20, 80) end)
+	btn.MouseLeave:Connect(function() btn.BackgroundColor3 = Color3.fromRGB(30, 15, 45) end)
+	return btn
+end
+
+local CloseBtn = CreateTopBtn("X", -35)
+CloseBtn.MouseButton1Click:Connect(function() ScreenGui:Destroy() end)
+
+local MiniBtn = CreateTopBtn("-", -70)
+local minimized = false
+MiniBtn.MouseButton1Click:Connect(function()
+	minimized = not minimized
+	if minimized then
+		MainFrame:TweenSize(UDim2.new(0.65, 0, 0, 40), "Out", "Quint", 0.4, true)
+	else
+		MainFrame:TweenSize(UDim2.new(0.65, 0, 0.94, 0), "Out", "Quint", 0.4, true)
+	end
+end)
+
+-- ==========================================
+-- SOL MENÜ (SECTIONS) 
+-- ==========================================
+local LeftPanel = Instance.new("Frame")
+LeftPanel.Size = UDim2.new(0, 95, 1, -40)
+LeftPanel.Position = UDim2.new(0, 0, 0, 40)
+LeftPanel.BackgroundColor3 = Color3.fromRGB(15, 12, 22)
+LeftPanel.BackgroundTransparency = 0.3
+LeftPanel.BorderSizePixel = 0
+LeftPanel.ZIndex = 5
+LeftPanel.Parent = MainFrame
+
+local LeftDivider = Instance.new("Frame")
+LeftDivider.Size = UDim2.new(0, 2, 1, 0)
+LeftDivider.Position = UDim2.new(1, -2, 0, 0)
+LeftDivider.BackgroundColor3 = Color3.fromRGB(60, 15, 100)
+LeftDivider.BorderSizePixel = 0
+LeftDivider.ZIndex = 6
+LeftDivider.Parent = LeftPanel
+
+local RemotesSecBtn = Instance.new("TextButton")
+RemotesSecBtn.Size = UDim2.new(1, -16, 0, 30)
+RemotesSecBtn.Position = UDim2.new(0, 8, 0, 10)
+RemotesSecBtn.BackgroundColor3 = Color3.fromRGB(100, 30, 150)
+RemotesSecBtn.Text = "Remotes"
+RemotesSecBtn.TextColor3 = Color3.new(1,1,1)
+RemotesSecBtn.Font = Enum.Font.GothamBold
+RemotesSecBtn.TextSize = 12
+RemotesSecBtn.ZIndex = 6
+RemotesSecBtn.Parent = LeftPanel
+Instance.new("UICorner", RemotesSecBtn).CornerRadius = UDim.new(0, 8)
+local RemotesSecStroke = AddStroke(RemotesSecBtn, Color3.fromRGB(150, 40, 200), 1)
+
+local ItemsSecBtn = Instance.new("TextButton")
+ItemsSecBtn.Size = UDim2.new(1, -16, 0, 30)
+ItemsSecBtn.Position = UDim2.new(0, 8, 0, 50)
+ItemsSecBtn.BackgroundColor3 = Color3.fromRGB(40, 15, 70)
+ItemsSecBtn.Text = "Items"
+ItemsSecBtn.TextColor3 = Color3.fromRGB(200, 150, 255)
+ItemsSecBtn.Font = Enum.Font.GothamBold
+ItemsSecBtn.TextSize = 12
+ItemsSecBtn.ZIndex = 6
+ItemsSecBtn.Parent = LeftPanel
+Instance.new("UICorner", ItemsSecBtn).CornerRadius = UDim.new(0, 8)
+local ItemsSecStroke = AddStroke(ItemsSecBtn, Color3.fromRGB(120, 40, 220), 1)
+
+local GamesSecBtn = Instance.new("TextButton")
+GamesSecBtn.Size = UDim2.new(1, -16, 0, 30)
+GamesSecBtn.Position = UDim2.new(0, 8, 0, 90)
+GamesSecBtn.BackgroundColor3 = Color3.fromRGB(40, 15, 70)
+GamesSecBtn.Text = "Games"
+GamesSecBtn.TextColor3 = Color3.fromRGB(200, 150, 255)
+GamesSecBtn.Font = Enum.Font.GothamBold
+GamesSecBtn.TextSize = 12
+GamesSecBtn.ZIndex = 6
+GamesSecBtn.Parent = LeftPanel
+Instance.new("UICorner", GamesSecBtn).CornerRadius = UDim.new(0, 8)
+local GamesSecStroke = AddStroke(GamesSecBtn, Color3.fromRGB(120, 40, 220), 1)
+
+-- ==========================================
+-- EFSANE CREDITS OVERLAY
+-- ==========================================
+local CreditsOverlay = Instance.new("Frame")
+CreditsOverlay.Size = UDim2.new(1, -95, 1, -40)
+CreditsOverlay.Position = UDim2.new(0, 95, 0, 40)
+CreditsOverlay.BackgroundColor3 = Color3.fromRGB(15, 12, 22)
+CreditsOverlay.BackgroundTransparency = 0.05
+CreditsOverlay.Visible = false
+CreditsOverlay.ZIndex = 15
+CreditsOverlay.Parent = MainFrame
+
+local DevContainer = Instance.new("Frame")
+DevContainer.Size = UDim2.new(1, 0, 0, 40)
+DevContainer.Position = UDim2.new(0, 0, 0, 20)
+DevContainer.BackgroundTransparency = 1
+DevContainer.ZIndex = 16
+DevContainer.Parent = CreditsOverlay
+
+local DevLayout = Instance.new("UIListLayout")
+DevLayout.FillDirection = Enum.FillDirection.Horizontal
+DevLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+DevLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+DevLayout.Padding = UDim.new(0, 10)
+DevLayout.Parent = DevContainer
+
+local LogoImg = Instance.new("ImageLabel")
+LogoImg.Size = UDim2.new(0, 32, 0, 32)
+LogoImg.BackgroundTransparency = 1
+LogoImg.Image = "rbxassetid://128337196312757" 
+LogoImg.ZIndex = 17
+LogoImg.Parent = DevContainer
+
+local DevTitle = Instance.new("TextLabel")
+DevTitle.Size = UDim2.new(0, 200, 0, 40)
+DevTitle.BackgroundTransparency = 1
+DevTitle.Text = "developed by oxireun"
+DevTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+DevTitle.Font = Enum.Font.GothamMedium
+DevTitle.TextSize = 20
+DevTitle.TextXAlignment = Enum.TextXAlignment.Left
+DevTitle.ZIndex = 17
+DevTitle.Parent = DevContainer
+
+local function CreateBigSocialBtn(name, assetId, yPos, link)
+	local btn = Instance.new("TextButton")
+	btn.Size = UDim2.new(0.6, 0, 0, 45)
+	btn.Position = UDim2.new(0.2, 0, 0, yPos)
+	btn.BackgroundColor3 = Color3.fromRGB(30, 15, 40)
+	btn.Text = "" 
+	btn.ZIndex = 16
+	btn.Parent = CreditsOverlay
+	Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
+	AddStroke(btn, Color3.fromRGB(120, 40, 180), 1)
+
+	local icon = Instance.new("ImageLabel")
+	icon.Size = UDim2.new(0, 24, 0, 24)
+	icon.Position = UDim2.new(0, 20, 0.5, -12)
+	icon.BackgroundTransparency = 1
+	icon.Image = assetId
+	icon.ZIndex = 17
+	icon.Parent = btn
+
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(1, 0, 1, 0)
+	label.Position = UDim2.new(0, 0, 0, 0)
+	label.BackgroundTransparency = 1
+	label.Text = name
+	label.TextColor3 = Color3.new(1,1,1)
+	label.Font = Enum.Font.GothamBold
+	label.TextSize = 14
+	label.ZIndex = 17
+	label.Parent = btn
+
+	btn.MouseButton1Click:Connect(function()
+		setclipboard(link)
+		label.Text = "Copied!"
+		label.TextColor3 = Color3.fromRGB(100, 255, 100)
+		task.wait(1.5)
+		label.Text = name
+		label.TextColor3 = Color3.new(1,1,1)
+	end)
+end
+
+CreateBigSocialBtn("Join Discord", "rbxassetid://9482967265", 85, "https://discord.gg/M2Xq55wC8Z")
+CreateBigSocialBtn("Subscribe YouTube", "rbxassetid://10870233668", 145, "https://youtube.com/@oxireun?si=dnaRt4zcDvmnrUu_")
+
+TopCreditsBtn.MouseButton1Click:Connect(function()
+	CreditsOverlay.Visible = not CreditsOverlay.Visible
+	if CreditsOverlay.Visible then
+		TopCreditsBtn.BackgroundColor3 = Color3.fromRGB(100, 30, 150)
+		TopCreditsBtn.TextColor3 = Color3.new(1,1,1)
+	else
+		TopCreditsBtn.BackgroundColor3 = Color3.fromRGB(30, 15, 45)
+		TopCreditsBtn.TextColor3 = Color3.fromRGB(200, 150, 255)
+	end
+end)
+
+-- ==========================================
+-- KONTROL BÖLÜMÜ
+-- ==========================================
+local ControlContainer = Instance.new("Frame")
+ControlContainer.Size = UDim2.new(1, -115, 0, 100) 
+ControlContainer.Position = UDim2.new(0, 105, 0, 48)
+ControlContainer.BackgroundTransparency = 1
+ControlContainer.ZIndex = 2
+ControlContainer.Parent = MainFrame
+
+local SearchBox = Instance.new("TextBox")
+SearchBox.Size = UDim2.new(0.25, -5, 0, 28)
+SearchBox.Position = UDim2.new(0, 0, 0, 0)
+SearchBox.BackgroundColor3 = Color3.fromRGB(25, 15, 30)
+SearchBox.PlaceholderText = "Search Remote..."
+SearchBox.Text = ""
+SearchBox.TextColor3 = Color3.new(1,1,1)
+SearchBox.PlaceholderColor3 = Color3.fromRGB(150, 150, 150)
+SearchBox.Font = Enum.Font.Gotham
+SearchBox.TextSize = 12
+SearchBox.ZIndex = 2
+SearchBox.Parent = ControlContainer
+Instance.new("UICorner", SearchBox).CornerRadius = UDim.new(0, 6)
+AddStroke(SearchBox, Color3.fromRGB(100, 40, 150), 1)
+
+local ArgInput = Instance.new("TextBox")
+ArgInput.Size = UDim2.new(0.25, -5, 0, 28)
+ArgInput.Position = UDim2.new(0.25, 1, 0, 0)
+ArgInput.BackgroundColor3 = Color3.fromRGB(25, 15, 30)
+ArgInput.PlaceholderText = "ID / Arg"
+ArgInput.Text = ""
+ArgInput.TextColor3 = Color3.new(1,1,1)
+ArgInput.PlaceholderColor3 = Color3.fromRGB(150, 150, 150)
+ArgInput.Font = Enum.Font.Gotham
+ArgInput.TextSize = 12
+ArgInput.ZIndex = 2
+ArgInput.Parent = ControlContainer
+Instance.new("UICorner", ArgInput).CornerRadius = UDim.new(0, 6)
+AddStroke(ArgInput, Color3.fromRGB(100, 40, 150), 1)
+
+local DelayInput = Instance.new("TextBox")
+DelayInput.Size = UDim2.new(0.25, -5, 0, 28)
+DelayInput.Position = UDim2.new(0.5, 2, 0, 0)
+DelayInput.BackgroundColor3 = Color3.fromRGB(25, 15, 30)
+DelayInput.PlaceholderText = "Time Delay"
+DelayInput.Text = ""
+DelayInput.TextColor3 = Color3.new(1,1,1)
+DelayInput.PlaceholderColor3 = Color3.fromRGB(150, 150, 150)
+DelayInput.Font = Enum.Font.Gotham
+DelayInput.TextSize = 12
+DelayInput.ZIndex = 2
+DelayInput.Parent = ControlContainer
+Instance.new("UICorner", DelayInput).CornerRadius = UDim.new(0, 6)
+AddStroke(DelayInput, Color3.fromRGB(100, 40, 150), 1)
+
+local AddTypeBtn = Instance.new("TextButton")
+AddTypeBtn.Size = UDim2.new(0.25, -5, 0, 28)
+AddTypeBtn.Position = UDim2.new(0.75, 3, 0, 0)
+AddTypeBtn.BackgroundColor3 = Color3.fromRGB(30, 15, 40)
+AddTypeBtn.Text = "Add Type"
+AddTypeBtn.TextColor3 = Color3.fromRGB(255, 100, 100)
+AddTypeBtn.Font = Enum.Font.GothamBold
+AddTypeBtn.TextSize = 12
+AddTypeBtn.ZIndex = 2
+AddTypeBtn.Parent = ControlContainer
+Instance.new("UICorner", AddTypeBtn).CornerRadius = UDim.new(0, 6)
+AddStroke(AddTypeBtn, Color3.fromRGB(100, 40, 150), 1)
+
+local AddTypeEnabled = false
+AddTypeBtn.MouseButton1Click:Connect(function()
+	AddTypeEnabled = not AddTypeEnabled
+	if AddTypeEnabled then AddTypeBtn.TextColor3 = Color3.fromRGB(100, 255, 100)
+	else AddTypeBtn.TextColor3 = Color3.fromRGB(255, 100, 100) end
+end)
+
+local ToggleFrame = Instance.new("Frame")
+ToggleFrame.Size = UDim2.new(1, 0, 0, 28)
+ToggleFrame.Position = UDim2.new(0, 0, 0, 34)
+ToggleFrame.BackgroundTransparency = 1
+ToggleFrame.ZIndex = 2
+ToggleFrame.Parent = ControlContainer
+
+local ToggleLayout = Instance.new("UIListLayout")
+ToggleLayout.FillDirection = Enum.FillDirection.Horizontal
+ToggleLayout.Padding = UDim.new(0, 8)
+ToggleLayout.SortOrder = Enum.SortOrder.LayoutOrder
+ToggleLayout.Parent = ToggleFrame
+
+local function CreateToggleBtn(text, color)
+	local btn = Instance.new("TextButton")
+	btn.Size = UDim2.new(0.25, -6, 1, 0)
+	btn.BackgroundColor3 = Color3.fromRGB(30, 15, 40)
+	btn.Text = text
+	btn.TextColor3 = color
+	btn.Font = Enum.Font.GothamBold
+	btn.TextSize = 11
+	btn.ZIndex = 2
+	btn.Parent = ToggleFrame
+	Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+	AddStroke(btn, Color3.fromRGB(100, 40, 150), 1)
+	return btn
+end
+
+local LoopEventsBtn = CreateToggleBtn("Loop Events", Color3.fromRGB(255, 100, 100))
+local LoopFuncsBtn = CreateToggleBtn("Loop Funcs", Color3.fromRGB(255, 100, 100))
+local NameToggleBtn = CreateToggleBtn("Name", Color3.fromRGB(255, 100, 100))
+local BlockTpBtn = CreateToggleBtn("Anti Teleport", Color3.fromRGB(255, 100, 100))
+
+local RefreshBtn = Instance.new("TextButton")
+RefreshBtn.Size = UDim2.new(1, 0, 0, 30)
+RefreshBtn.Position = UDim2.new(0, 0, 0, 68)
+RefreshBtn.BackgroundColor3 = Color3.fromRGB(70, 20, 100)
+RefreshBtn.Text = "Refresh List"
+RefreshBtn.TextColor3 = Color3.new(1, 1, 1)
+RefreshBtn.Font = Enum.Font.GothamBold
+RefreshBtn.TextSize = 13
+RefreshBtn.ZIndex = 2
+RefreshBtn.Parent = ControlContainer
+Instance.new("UICorner", RefreshBtn).CornerRadius = UDim.new(0, 6)
+AddStroke(RefreshBtn, Color3.fromRGB(150, 40, 200), 1)
+
+-- ==========================================
+-- LİSTE BÖLÜMÜ (REMOTES)
+-- ==========================================
+local ListContainer = Instance.new("ScrollingFrame")
+ListContainer.Size = UDim2.new(1, -115, 1, -166) 
+ListContainer.Position = UDim2.new(0, 105, 0, 156) 
+ListContainer.BackgroundTransparency = 1
+ListContainer.BorderSizePixel = 0
+ListContainer.ScrollBarThickness = 4
+ListContainer.ScrollBarImageColor3 = Color3.fromRGB(150, 40, 200)
+ListContainer.ZIndex = 2
+ListContainer.CanvasSize = UDim2.new(0,0,0,0)
+ListContainer.ClipsDescendants = true
+ListContainer.Parent = MainFrame
+
+local UIList = Instance.new("UIListLayout")
+UIList.Padding = UDim.new(0, 8)
+UIList.SortOrder = Enum.SortOrder.LayoutOrder
+UIList.Parent = ListContainer
+
+UIList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+	ListContainer.CanvasSize = UDim2.new(0, 0, 0, UIList.AbsoluteContentSize.Y + 10)
+end)
+
+local FoundRemotes = {} 
+local LoopingEvents = false
+local LoopingFuncs = false
+local ForceString = false
+
+local function GetArguments()
+	local text = ArgInput.Text
+	local args = {}
+	if text ~= "" then
+		if ForceString then
+			table.insert(args, tostring(text))
+		else
+			local numberValue = tonumber(text)
+			if numberValue then table.insert(args, numberValue) else table.insert(args, text) end
+		end
+	end
+	if AddTypeEnabled then
+		table.insert(args, Enum.MarketplaceProductType.AvatarAsset)
+	end
+	return args
+end
+
+local function ExtractRemoteArgsStatically(remote)
+	local extracted = {}
+	local remoteName = remote.Name
+	local isEvent = remote:IsA("RemoteEvent")
+	local targetMethod = isEvent and "FireServer" or "InvokeServer"
+	
+	local filter = {[targetMethod] = true,[remoteName] = true,["game"] = true,["GetService"] = true,["Workspace"] = true,["ReplicatedStorage"] = true, ["Players"] = true,["LocalPlayer"] = true, ["WaitForChild"] = true,["FindFirstChild"] = true,["math"] = true,["string"] = true,["table"] = true,["require"] = true,["print"] = true,["warn"] = true,["Instance"] = true,["Color3"] = true,["Vector3"] = true, ["CFrame"] = true,["UDim2"] = true,["RaycastParams"] = true,
+		["Enum"] = true, ["Fire"] = true,["Invoke"] = true,["GetChildren"] = true,["GetDescendants"] = true,["IsA"] = true,["Clone"] = true,["Destroy"] = true,
+		["Parent"] = true,["Name"] = true,["Value"] = true, ["tick"] = true, ["wait"] = true
+	}
+
+	pcall(function()
+		for _, v in pairs(getgc(true)) do
+			if type(v) == "function" and islclosure(v) then
+				local s, consts = pcall(debug.getconstants, v)
+				if s and consts then
+					local hasRemote = false
+					local hasMethod = false
+					for _, c in pairs(consts) do
+						if c == remoteName then hasRemote = true end
+						if c == targetMethod then hasMethod = true end
+					end
+					
+					if hasRemote and hasMethod then
+						for _, c in pairs(consts) do
+							if type(c) == "string" and not filter[c] and #c > 0 and not c:match("^rbxasset") then
+								table.insert(extracted, c)
+							elseif type(c) == "number" then
+								table.insert(extracted, c)
+							end
+						end
+						break 
+					end
+				end
+			end
+		end
+	end)
+	return extracted
+end
+
+local function FindScriptForRemote(remoteName)
+	local foundPath = nil
+	pcall(function()
+		for _, v in pairs(getgc(true)) do
+			if type(v) == "function" and islclosure(v) then
+				local s, consts = pcall(debug.getconstants, v)
+				if s and consts then
+					for _, const in pairs(consts) do
+						if const == remoteName then
+							local env = getfenv(v)
+							if env.script and typeof(env.script) == "Instance" then
+								foundPath = env.script:GetFullName()
+								return 
+							end
+						end
+					end
+				end
+			end
+		end
+	end)
+	return foundPath
+end
+
+local function CreateRemoteItem(remote, rType)
+	local Item = Instance.new("Frame")
+	Item.Size = UDim2.new(1, 0, 0, 45)
+	Item.BackgroundColor3 = Color3.fromRGB(25, 15, 30)
+	Item.Name = remote.Name 
+	Item.ZIndex = 2
+	Item.Parent = ListContainer
+	Instance.new("UICorner", Item).CornerRadius = UDim.new(0, 6)
+	AddStroke(Item, Color3.fromRGB(100, 40, 150), 1)
+	
+	local ColorBar = Instance.new("Frame")
+	ColorBar.Size = UDim2.new(0, 4, 1, 0)
+	ColorBar.BackgroundColor3 = rType == "RemoteEvent" and Color3.fromRGB(255, 170, 0) or Color3.fromRGB(150, 40, 255)
+	ColorBar.ZIndex = 2
+	ColorBar.Parent = Item
+	Instance.new("UICorner", ColorBar).CornerRadius = UDim.new(0, 4)
+
+	local Icon = Instance.new("ImageLabel")
+	Icon.Size = UDim2.new(0, 22, 0, 22)
+	Icon.Position = UDim2.new(0, 12, 0.5, -11)
+	Icon.BackgroundTransparency = 1
+	Icon.ZIndex = 2
+	if rType == "RemoteEvent" then 
+		Icon.Image = "rbxassetid://110803789420086" 
+	else 
+		Icon.Image = "rbxassetid://108537517159060" 
+	end
+	Icon.Parent = Item
+
+	local NameLabel = Instance.new("TextLabel")
+	NameLabel.Size = UDim2.new(1, -250, 1, 0) 
+	NameLabel.Position = UDim2.new(0, 40, 0, 0)
+	NameLabel.BackgroundTransparency = 1
+	NameLabel.Text = remote.Name
+	NameLabel.TextColor3 = Color3.new(1,1,1)
+	NameLabel.TextXAlignment = Enum.TextXAlignment.Left
+	NameLabel.Font = Enum.Font.GothamSemibold
+	NameLabel.TextSize = 11 
+	NameLabel.TextTruncate = Enum.TextTruncate.AtEnd
+	NameLabel.ZIndex = 2
+	NameLabel.Parent = Item
+	
+	local BtnContainer = Instance.new("Frame")
+	BtnContainer.Size = UDim2.new(0, 215, 1, -10)
+	BtnContainer.Position = UDim2.new(1, -220, 0, 5)
+	BtnContainer.BackgroundTransparency = 1
+	BtnContainer.ZIndex = 2
+	BtnContainer.Parent = Item
+	
+	local Layout = Instance.new("UIListLayout")
+	Layout.FillDirection = Enum.FillDirection.Horizontal
+	Layout.Padding = UDim.new(0, 4)
+	Layout.HorizontalAlignment = Enum.HorizontalAlignment.Right
+	Layout.Parent = BtnContainer
+
+	local dataRef = {Obj = remote, GUI = Item, Type = rType, Blocked = false}
+
+	local function CreateItemBtn(text, color, strokeColor)
+		local btn = Instance.new("TextButton")
+		btn.Size = UDim2.new(0, 40, 1, 0)
+		btn.BackgroundColor3 = color
+		btn.Text = text
+		btn.TextColor3 = Color3.new(1,1,1)
+		btn.Font = Enum.Font.GothamBold
+		btn.TextSize = 10
+		btn.ZIndex = 2
+		btn.Parent = BtnContainer
+		Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 4)
+		AddStroke(btn, strokeColor, 1)
+		return btn
+	end
+
+	local ScriptBtn = CreateItemBtn("Script", Color3.fromRGB(60, 20, 80), Color3.fromRGB(120, 40, 150))
+	ScriptBtn.MouseButton1Click:Connect(function()
+		ScriptBtn.Text = "Wait.."
+		ScriptBtn.TextColor3 = Color3.fromRGB(255, 200, 50)
+		task.wait(0.1) 
+		local path = FindScriptForRemote(remote.Name)
+		if path then
+			setclipboard("---Remote Detector V1\n" .. path)
+			ScriptBtn.Text = "Copied!"
+			ScriptBtn.TextColor3 = Color3.fromRGB(100, 255, 100)
+		else
+			ScriptBtn.Text = "No Script"
+			ScriptBtn.TextColor3 = Color3.fromRGB(255, 100, 100)
+		end
+		task.wait(1.5)
+		ScriptBtn.Text = "Script"
+		ScriptBtn.TextColor3 = Color3.new(1,1,1)
+	end)
+
+	local ArgBtn = CreateItemBtn("Arg", Color3.fromRGB(40, 30, 50), Color3.fromRGB(80, 50, 100))
+	ArgBtn.MouseButton1Click:Connect(function()
+		ArgBtn.Text = "Wait.."
+		task.wait(0.1)
+		local method = rType == "RemoteEvent" and "FireServer" or "InvokeServer"
+		local fullPath = FormatPath(remote)
+		local formattedCode = "---Remote Detector V1\n"
+		
+		if CapturedArgs[remote] then formattedCode = formattedCode .. "local args = " .. Serialize(CapturedArgs[remote], 0) .. "\n\n"
+		else
+			local staticArgs = ExtractRemoteArgsStatically(remote)
+			formattedCode = formattedCode .. "local args = {\n"
+			if #staticArgs > 0 then
+				for i, val in ipairs(staticArgs) do
+					if type(val) == "string" then formattedCode = formattedCode .. '[' .. i .. '] = "' .. val:gsub('"', '\\"') .. '";\n'
+					else formattedCode = formattedCode .. '[' .. i .. '] = ' .. tostring(val) .. ';\n' end
+				end
+			else formattedCode = formattedCode .. "    -- No arguments\n" end
+			formattedCode = formattedCode .. "}\n\n"
+		end
+		
+		formattedCode = formattedCode .. fullPath .. ":" .. method .. "(unpack(args))"
+		setclipboard(formattedCode) 
+		ArgBtn.BackgroundColor3 = Color3.fromRGB(40, 120, 60)
+		ArgBtn.Text = "Copied!"
+		ArgBtn.TextColor3 = Color3.fromRGB(100, 255, 100)
+		task.wait(1.5)
+		ArgBtn.BackgroundColor3 = Color3.fromRGB(40, 30, 50)
+		ArgBtn.Text = "Arg"
+		ArgBtn.TextColor3 = Color3.new(1,1,1)
+	end)
+
+	local BlockBtn = CreateItemBtn("Block", Color3.fromRGB(50, 30, 60), Color3.fromRGB(100, 40, 120))
+	BlockBtn.MouseButton1Click:Connect(function()
+		dataRef.Blocked = not dataRef.Blocked
+		if dataRef.Blocked then
+			BlockBtn.BackgroundColor3 = Color3.fromRGB(180, 20, 40)
+			BlockBtn.Text = "Blocked"
+			Item.BackgroundColor3 = Color3.fromRGB(50, 15, 20)
+		else
+			BlockBtn.BackgroundColor3 = Color3.fromRGB(50, 30, 60)
+			BlockBtn.Text = "Block"
+			Item.BackgroundColor3 = Color3.fromRGB(25, 15, 30)
+		end
+	end)
+	
+	local CopyBtn = CreateItemBtn("Copy", Color3.fromRGB(50, 30, 60), Color3.fromRGB(100, 40, 120))
+	CopyBtn.MouseButton1Click:Connect(function()
+		local argsList = {}
+		local inputVal = ArgInput.Text
+		if inputVal ~= "" then
+			if ForceString then 
+				table.insert(argsList, '"' .. inputVal .. '"')
+			else 
+				if tonumber(inputVal) then 
+					table.insert(argsList, inputVal) 
+				else 
+					table.insert(argsList, '"' .. inputVal .. '"') 
+				end 
+			end
+		end
+		
+		if AddTypeEnabled then
+			table.insert(argsList, "Enum.MarketplaceProductType.AvatarAsset")
+		end
+		
+		local argsText = #argsList > 0 and table.concat(argsList, ", ") or "..."
+		
+		local path = FormatPath(remote)
+		local scriptText = "---Remote Detector V1\n"
+		if rType == "RemoteEvent" then scriptText = scriptText .. string.format('%s:FireServer(%s)', path, argsText)
+		else scriptText = scriptText .. string.format('%s:InvokeServer(%s)', path, argsText) end
+		setclipboard(scriptText)
+		CopyBtn.Text = "Copied!"
+		CopyBtn.TextColor3 = Color3.fromRGB(0, 255, 0)
+		task.wait(1)
+		CopyBtn.Text = "Copy"
+		CopyBtn.TextColor3 = Color3.new(1,1,1)
+	end)
+
+	local RunBtn = CreateItemBtn("Run", Color3.fromRGB(0, 110, 200), Color3.fromRGB(0, 140, 255))
+	RunBtn.MouseButton1Click:Connect(function()
+		if dataRef.Blocked then return end
+		local args = GetArguments()
+		if rType == "RemoteEvent" then remote:FireServer(unpack(args))
+		else task.spawn(function() remote:InvokeServer(unpack(args)) end) end
+		RunBtn.BackgroundColor3 = Color3.fromRGB(0, 180, 100)
+		task.wait(0.2)
+		RunBtn.BackgroundColor3 = Color3.fromRGB(0, 110, 200)
+	end)
+
+	table.insert(FoundRemotes, dataRef)
+end
+
+local function LoadRemotes()
+	for _, child in pairs(ListContainer:GetChildren()) do
+		if child:IsA("Frame") then child:Destroy() end
+	end
+	table.clear(FoundRemotes)
+
+	for _, v in pairs(ReplicatedStorage:GetDescendants()) do
+		if v:IsA("RemoteEvent") then CreateRemoteItem(v, "RemoteEvent")
+		elseif v:IsA("RemoteFunction") then CreateRemoteItem(v, "RemoteFunction") end
+	end
+end
+
+RefreshBtn.MouseButton1Click:Connect(function()
+	local oldText = RefreshBtn.Text
+	local oldClr = RefreshBtn.BackgroundColor3
+	RefreshBtn.Text = "Refreshing..."
+	RefreshBtn.BackgroundColor3 = Color3.fromRGB(120, 30, 180)
+	LoadRemotes()
+	task.wait(0.3)
+	RefreshBtn.Text = oldText
+	RefreshBtn.BackgroundColor3 = oldClr
+end)
+
+SearchBox:GetPropertyChangedSignal("Text"):Connect(function()
+	local searchText = SearchBox.Text:lower()
+	for _, data in pairs(FoundRemotes) do
+		if data.Obj.Name:lower():find(searchText) then data.GUI.Visible = true else data.GUI.Visible = false end
+	end
+end)
+
+task.spawn(function()
+	while true do
+		local isIdle = true
+		local delayVal = tonumber(DelayInput.Text) or 0.05
+		
+		if LoopingEvents then
+			local args = GetArguments()
+			for _, data in pairs(FoundRemotes) do
+				if not LoopingEvents then break end
+				if data.Type == "RemoteEvent" and not data.Blocked then
+					pcall(function() data.Obj:FireServer(unpack(args)) end)
+					isIdle = false
+					task.wait(delayVal)
+				end
+			end
+		end
+		
+		if LoopingFuncs then
+			local args = GetArguments()
+			for _, data in pairs(FoundRemotes) do
+				if not LoopingFuncs then break end
+				if data.Type == "RemoteFunction" and not data.Blocked then
+					pcall(function() task.spawn(function() data.Obj:InvokeServer(unpack(args)) end) end)
+					isIdle = false
+					task.wait(delayVal)
+				end
+			end
+		end
+		
+		if isIdle then task.wait(0.5) end
+	end
+end)
+
+LoopEventsBtn.MouseButton1Click:Connect(function()
+	LoopingEvents = not LoopingEvents
+	if LoopingEvents then LoopEventsBtn.TextColor3 = Color3.fromRGB(100, 255, 100)
+	else LoopEventsBtn.TextColor3 = Color3.fromRGB(255, 100, 100) end
+end)
+
+LoopFuncsBtn.MouseButton1Click:Connect(function()
+	LoopingFuncs = not LoopingFuncs
+	if LoopingFuncs then LoopFuncsBtn.TextColor3 = Color3.fromRGB(100, 255, 100)
+	else LoopFuncsBtn.TextColor3 = Color3.fromRGB(255, 100, 100) end
+end)
+
+NameToggleBtn.MouseButton1Click:Connect(function()
+	ForceString = not ForceString
+	if ForceString then NameToggleBtn.TextColor3 = Color3.fromRGB(100, 255, 100)
+	else NameToggleBtn.TextColor3 = Color3.fromRGB(255, 100, 100) end
+end)
+
+BlockTpBtn.MouseButton1Click:Connect(function()
+	BlockTeleportEnabled = not BlockTeleportEnabled
+	if BlockTeleportEnabled then BlockTpBtn.TextColor3 = Color3.fromRGB(100, 255, 100)
+	else BlockTpBtn.TextColor3 = Color3.fromRGB(255, 100, 100) end
+end)
+
+LoadRemotes()
+
+-- ==========================================
+-- EŞYALAR VE ROZETLER BÖLÜMÜ 
+-- ==========================================
+local ItemsContainer = Instance.new("Frame")
+ItemsContainer.Size = UDim2.new(1, -95, 1, -40)
+ItemsContainer.Position = UDim2.new(0, 95, 0, 40)
+ItemsContainer.BackgroundTransparency = 1
+ItemsContainer.Visible = false
+ItemsContainer.ZIndex = 5
+ItemsContainer.Parent = MainFrame
+
+local ItemsTabFrame = Instance.new("Frame")
+ItemsTabFrame.Size = UDim2.new(1, -20, 0, 30)
+ItemsTabFrame.Position = UDim2.new(0, 10, 0, 8)
+ItemsTabFrame.BackgroundTransparency = 1
+ItemsTabFrame.ZIndex = 6
+ItemsTabFrame.Parent = ItemsContainer
+
+local ItemsControlsFrame = Instance.new("Frame")
+ItemsControlsFrame.Size = UDim2.new(1, -20, 0, 28)
+ItemsControlsFrame.Position = UDim2.new(0, 10, 0, 44)
+ItemsControlsFrame.BackgroundTransparency = 1
+ItemsControlsFrame.ZIndex = 7
+ItemsControlsFrame.Visible = true
+ItemsControlsFrame.Parent = ItemsContainer
+
+local ItemsRefreshBtn = Instance.new("TextButton")
+ItemsRefreshBtn.Size = UDim2.new(0, 80, 1, 0)
+ItemsRefreshBtn.Position = UDim2.new(1, -210, 0, 0)
+ItemsRefreshBtn.BackgroundColor3 = Color3.fromRGB(40, 15, 70)
+ItemsRefreshBtn.Text = "Refresh"
+ItemsRefreshBtn.TextColor3 = Color3.new(1,1,1)
+ItemsRefreshBtn.Font = Enum.Font.GothamBold
+ItemsRefreshBtn.TextSize = 12
+ItemsRefreshBtn.ZIndex = 7
+ItemsRefreshBtn.Parent = ItemsControlsFrame
+Instance.new("UICorner", ItemsRefreshBtn).CornerRadius = UDim.new(0, 10)
+AddStroke(ItemsRefreshBtn, Color3.fromRGB(120, 40, 200), 1)
+
+local UGCCurrentFilter = "Free"
+local ActiveItemsTab = "UGC"
+
+local DropdownBtn = Instance.new("TextButton")
+DropdownBtn.Size = UDim2.new(0, 120, 1, 0)
+DropdownBtn.Position = UDim2.new(1, -120, 0, 0)
+DropdownBtn.BackgroundColor3 = Color3.fromRGB(40, 15, 70)
+DropdownBtn.Text = "Free UGC ▼"
+DropdownBtn.TextColor3 = Color3.new(1,1,1)
+DropdownBtn.Font = Enum.Font.GothamBold
+DropdownBtn.TextSize = 12
+DropdownBtn.ZIndex = 8
+DropdownBtn.Parent = ItemsControlsFrame
+Instance.new("UICorner", DropdownBtn).CornerRadius = UDim.new(0, 10)
+AddStroke(DropdownBtn, Color3.fromRGB(120, 40, 200), 1)
+
+local DropdownList = Instance.new("Frame")
+DropdownList.Size = UDim2.new(0, 120, 0, 120) 
+DropdownList.Position = UDim2.new(1, -120, 1, 5)
+DropdownList.BackgroundColor3 = Color3.fromRGB(25, 15, 30)
+DropdownList.Visible = false
+DropdownList.ZIndex = 15
+DropdownList.Parent = ItemsControlsFrame
+Instance.new("UICorner", DropdownList).CornerRadius = UDim.new(0, 10)
+AddStroke(DropdownList, Color3.fromRGB(100, 40, 150), 1)
+
+local DropLayout = Instance.new("UIListLayout")
+DropLayout.Parent = DropdownList
+
+local FreeOpt = Instance.new("TextButton")
+FreeOpt.Size = UDim2.new(1, 0, 0.25, 0)
+FreeOpt.BackgroundTransparency = 1
+FreeOpt.Text = "Free UGC"
+FreeOpt.TextColor3 = Color3.new(1,1,1)
+FreeOpt.Font = Enum.Font.GothamBold
+FreeOpt.TextSize = 11
+FreeOpt.ZIndex = 16
+FreeOpt.Parent = DropdownList
+
+local PaidOpt = Instance.new("TextButton")
+PaidOpt.Size = UDim2.new(1, 0, 0.25, 0)
+PaidOpt.BackgroundTransparency = 1
+PaidOpt.Text = "Paid UGC"
+PaidOpt.TextColor3 = Color3.new(1,1,1)
+PaidOpt.Font = Enum.Font.GothamBold
+PaidOpt.TextSize = 11
+PaidOpt.ZIndex = 16
+PaidOpt.Parent = DropdownList
+
+local CreatorOpt = Instance.new("TextButton")
+CreatorOpt.Size = UDim2.new(1, 0, 0.25, 0)
+CreatorOpt.BackgroundTransparency = 1
+CreatorOpt.Text = "Creator Store"
+CreatorOpt.TextColor3 = Color3.new(1,1,1)
+CreatorOpt.Font = Enum.Font.GothamBold
+CreatorOpt.TextSize = 11
+CreatorOpt.ZIndex = 16
+CreatorOpt.Parent = DropdownList
+
+local GroupOpt = Instance.new("TextButton")
+GroupOpt.Size = UDim2.new(1, 0, 0.25, 0)
+GroupOpt.BackgroundTransparency = 1
+GroupOpt.Text = "Group Store"
+GroupOpt.TextColor3 = Color3.new(1,1,1)
+GroupOpt.Font = Enum.Font.GothamBold
+GroupOpt.TextSize = 11
+GroupOpt.ZIndex = 16
+GroupOpt.Parent = DropdownList
+
+local StatusText = Instance.new("TextLabel")
+StatusText.Size = UDim2.new(1, 0, 0, 30)
+StatusText.Position = UDim2.new(0, 0, 0.5, 0)
+StatusText.BackgroundTransparency = 1
+StatusText.Text = "Loading..."
+StatusText.TextColor3 = Color3.fromRGB(200, 200, 200)
+StatusText.Font = Enum.Font.Gotham
+StatusText.TextSize = 14
+StatusText.ZIndex = 6
+StatusText.Parent = ItemsContainer
+
+local UGCScrollContainer = Instance.new("ScrollingFrame")
+UGCScrollContainer.Size = UDim2.new(1, -20, 1, -88)
+UGCScrollContainer.Position = UDim2.new(0, 10, 0, 78)
+UGCScrollContainer.BackgroundTransparency = 1
+UGCScrollContainer.BorderSizePixel = 0
+UGCScrollContainer.ScrollBarThickness = 4
+UGCScrollContainer.ScrollBarImageColor3 = Color3.fromRGB(150, 40, 200)
+UGCScrollContainer.ZIndex = 6
+UGCScrollContainer.CanvasSize = UDim2.new(0,0,0,0)
+UGCScrollContainer.ClipsDescendants = true 
+UGCScrollContainer.Visible = true
+UGCScrollContainer.Parent = ItemsContainer
+
+local UGCLayout = Instance.new("UIListLayout")
+UGCLayout.Padding = UDim.new(0, 8)
+UGCLayout.SortOrder = Enum.SortOrder.LayoutOrder
+UGCLayout.Parent = UGCScrollContainer
+UGCLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+	UGCScrollContainer.CanvasSize = UDim2.new(0, 0, 0, UGCLayout.AbsoluteContentSize.Y + 10)
+end)
+
+local BadgeScrollContainer = Instance.new("ScrollingFrame")
+BadgeScrollContainer.Size = UDim2.new(1, -20, 1, -88)
+BadgeScrollContainer.Position = UDim2.new(0, 10, 0, 78)
+BadgeScrollContainer.BackgroundTransparency = 1
+BadgeScrollContainer.BorderSizePixel = 0
+BadgeScrollContainer.ScrollBarThickness = 4
+BadgeScrollContainer.ScrollBarImageColor3 = Color3.fromRGB(150, 40, 200)
+BadgeScrollContainer.ZIndex = 6
+BadgeScrollContainer.CanvasSize = UDim2.new(0,0,0,0)
+BadgeScrollContainer.ClipsDescendants = true 
+BadgeScrollContainer.Visible = false
+BadgeScrollContainer.Parent = ItemsContainer
+
+local BadgeLayout = Instance.new("UIListLayout")
+BadgeLayout.Padding = UDim.new(0, 8)
+BadgeLayout.SortOrder = Enum.SortOrder.LayoutOrder
+BadgeLayout.Parent = BadgeScrollContainer
+BadgeLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+	BadgeScrollContainer.CanvasSize = UDim2.new(0, 0, 0, BadgeLayout.AbsoluteContentSize.Y + 10)
+end)
+
+local function CreateUGCBadgeCard(targetParent, typeStr, id, name, extraInfo)
+	local Card = Instance.new("Frame")
+	Card.Size = UDim2.new(1, 0, 0, 55) 
+	Card.BackgroundColor3 = Color3.fromRGB(25, 15, 30)
+	Card.ZIndex = 6
+	Card.Parent = targetParent
+	Instance.new("UICorner", Card).CornerRadius = UDim.new(0, 6)
+	AddStroke(Card, Color3.fromRGB(100, 40, 150), 1)
+
+	local Icon = Instance.new("ImageLabel")
+	Icon.Size = UDim2.new(0, 35, 0, 35)
+	Icon.Position = UDim2.new(0, 10, 0.5, -17.5)
+	Icon.BackgroundTransparency = 1
+	Icon.ZIndex = 7
+	
+	if typeStr == "Badge" then Icon.Image = "rbxthumb://type=BadgeIcon&id=" .. id .. "&w=150&h=150"
+	elseif typeStr == "Bundle" then Icon.Image = "rbxthumb://type=BundleThumbnail&id=" .. id .. "&w=150&h=150"
+	else Icon.Image = "rbxthumb://type=Asset&id=" .. id .. "&w=150&h=150" end
+	Icon.Parent = Card
+
+	local NameLbl = Instance.new("TextLabel")
+	NameLbl.Size = UDim2.new(1, -220, 0, 18) 
+	NameLbl.Position = UDim2.new(0, 55, 0, 8)
+	NameLbl.BackgroundTransparency = 1
+	NameLbl.Text = name
+	NameLbl.TextColor3 = Color3.new(1,1,1)
+	NameLbl.TextXAlignment = Enum.TextXAlignment.Left
+	NameLbl.Font = Enum.Font.GothamSemibold
+	NameLbl.TextSize = 11
+	NameLbl.TextTruncate = Enum.TextTruncate.AtEnd
+	NameLbl.ZIndex = 7
+	NameLbl.Parent = Card
+	
+	local ExtraLbl = Instance.new("TextLabel")
+	ExtraLbl.Size = UDim2.new(1, -220, 0, 15)
+	ExtraLbl.Position = UDim2.new(0, 55, 0, 28)
+	ExtraLbl.BackgroundTransparency = 1
+	ExtraLbl.Text = extraInfo
+	ExtraLbl.TextColor3 = Color3.fromRGB(150, 255, 150)
+	ExtraLbl.TextXAlignment = Enum.TextXAlignment.Left
+	ExtraLbl.Font = Enum.Font.Gotham
+	ExtraLbl.TextSize = 10
+	ExtraLbl.TextTruncate = Enum.TextTruncate.AtEnd
+	ExtraLbl.ZIndex = 7
+	ExtraLbl.Parent = Card
+	
+	local offsetTracker = -5 
+	
+	if typeStr ~= "Badge" then
+		local BuyBtn = Instance.new("TextButton")
+		BuyBtn.Size = UDim2.new(0, 40, 0, 24) 
+		BuyBtn.AnchorPoint = Vector2.new(1, 0.5)
+		BuyBtn.Position = UDim2.new(1, offsetTracker, 0.5, 0)
+		BuyBtn.BackgroundColor3 = Color3.fromRGB(0, 160, 80)
+		BuyBtn.Text = "Buy"
+		BuyBtn.TextColor3 = Color3.new(1,1,1)
+		BuyBtn.Font = Enum.Font.GothamBold
+		BuyBtn.TextSize = 10
+		BuyBtn.ZIndex = 7
+		BuyBtn.Parent = Card
+		Instance.new("UICorner", BuyBtn).CornerRadius = UDim.new(0, 4)
+		AddStroke(BuyBtn, Color3.fromRGB(0, 200, 100), 1)
+
+		BuyBtn.MouseButton1Click:Connect(function()
+			if typeStr == "Bundle" then
+				MarketplaceService:PromptBundlePurchase(LocalPlayer, id)
+			else
+				MarketplaceService:PromptPurchase(LocalPlayer, id)
+			end
+		end)
+		offsetTracker = offsetTracker - 45 
+	end
+
+	local CopyLinkBtn = Instance.new("TextButton")
+	CopyLinkBtn.Size = UDim2.new(0, 60, 0, 24) 
+	CopyLinkBtn.AnchorPoint = Vector2.new(1, 0.5)
+	CopyLinkBtn.Position = UDim2.new(1, offsetTracker, 0.5, 0)
+	CopyLinkBtn.BackgroundColor3 = Color3.fromRGB(50, 30, 60)
+	CopyLinkBtn.Text = "Copy Link"
+	CopyLinkBtn.TextColor3 = Color3.new(1,1,1)
+	CopyLinkBtn.Font = Enum.Font.GothamBold
+	CopyLinkBtn.TextSize = 10
+	CopyLinkBtn.ZIndex = 7
+	CopyLinkBtn.Parent = Card
+	Instance.new("UICorner", CopyLinkBtn).CornerRadius = UDim.new(0, 4)
+	AddStroke(CopyLinkBtn, Color3.fromRGB(100, 40, 120), 1)
+
+	CopyLinkBtn.MouseButton1Click:Connect(function()
+		if typeStr == "Badge" then setclipboard("https://www.roblox.com/badges/" .. id)
+		elseif typeStr == "Bundle" then setclipboard("https://www.roblox.com/bundles/" .. id)
+		else setclipboard("https://www.roblox.com/catalog/" .. id) end
+		
+		CopyLinkBtn.Text = "Copied!"
+		CopyLinkBtn.TextColor3 = Color3.fromRGB(100, 255, 100)
+		task.wait(1.5)
+		CopyLinkBtn.Text = "Copy Link"
+		CopyLinkBtn.TextColor3 = Color3.new(1,1,1)
+	end)
+	
+	offsetTracker = offsetTracker - 65 
+
+	local CopyIdBtn = Instance.new("TextButton")
+	CopyIdBtn.Size = UDim2.new(0, 50, 0, 24) 
+	CopyIdBtn.AnchorPoint = Vector2.new(1, 0.5)
+	CopyIdBtn.Position = UDim2.new(1, offsetTracker, 0.5, 0)
+	CopyIdBtn.BackgroundColor3 = Color3.fromRGB(40, 30, 50)
+	CopyIdBtn.Text = "Copy ID"
+	CopyIdBtn.TextColor3 = Color3.new(1,1,1)
+	CopyIdBtn.Font = Enum.Font.GothamBold
+	CopyIdBtn.TextSize = 10
+	CopyIdBtn.ZIndex = 7
+	CopyIdBtn.Parent = Card
+	Instance.new("UICorner", CopyIdBtn).CornerRadius = UDim.new(0, 4)
+	AddStroke(CopyIdBtn, Color3.fromRGB(80, 50, 100), 1)
+	
+	CopyIdBtn.MouseButton1Click:Connect(function()
+		setclipboard(tostring(id))
+		CopyIdBtn.Text = "Copied!"
+		CopyIdBtn.TextColor3 = Color3.fromRGB(100, 255, 100)
+		task.wait(1.5)
+		CopyIdBtn.Text = "Copy ID"
+		CopyIdBtn.TextColor3 = Color3.new(1,1,1)
+	end)
+end
+
+local function IsLinkedToUniverse(assetId)
+	local s, res = pcall(function()
+		return game:HttpGet("https://economy.roproxy.com/v2/assets/" .. tostring(assetId) .. "/details")
+	end)
+	if s and res then
+		local ds, decoded = pcall(function() return HttpService:JSONDecode(res) end)
+		if ds and decoded and decoded.SaleLocation and decoded.SaleLocation.UniverseIds then
+			for _, uid in ipairs(decoded.SaleLocation.UniverseIds) do
+				if tostring(uid) == tostring(game.GameId) then return true end
+			end
+		end
+	end
+	return false
+end
+
+local function CollectInGameNumbers()
+	local nums = {}
+	local function scan(parent)
+		local descendants = parent:GetDescendants()
+		for i, v in ipairs(descendants) do
+			if i % 1500 == 0 then task.wait() end 
+			pcall(function()
+				if v:IsA("ValueBase") then
+					local n = tonumber(v.Value)
+					if n and n > 10000000 then nums[n] = true end
+				end
+				for _, attr in pairs(v:GetAttributes()) do
+					local n = tonumber(attr)
+					if n and n > 10000000 then nums[n] = true end
+				end
+				if v:IsA("ProximityPrompt") then
+					local n1 = tonumber(v.ObjectText)
+					local n2 = tonumber(v.ActionText)
+					if n1 and n1 > 10000000 then nums[n1] = true end
+					if n2 and n2 > 10000000 then nums[n2] = true end
+				end
+				local nName = tonumber(v.Name)
+				if nName and nName > 10000000 then nums[nName] = true end
+			end)
+		end
+	end
+	pcall(function() scan(game:GetService("Workspace")) end)
+	pcall(function() scan(game:GetService("ReplicatedStorage")) end)
+	pcall(function() scan(LocalPlayer:WaitForChild("PlayerGui")) end)
+	
+	pcall(function()
+		local gc = getgc(true)
+		for i, v in ipairs(gc) do
+			if i % 2000 == 0 then task.wait() end
+			if type(v) == "function" and islclosure(v) then
+				local s, consts = pcall(debug.getconstants, v)
+				if s and consts then
+					for _, c in pairs(consts) do
+						if type(c) == "number" and c > 10000000 then
+							nums[c] = true
+						elseif type(c) == "string" then
+							local n = tonumber(c)
+							if n and n > 10000000 then nums[n] = true end
+						end
+					end
+				end
+			end
+		end
+	end)
+	return nums
+end
+
+local CurrentUGCTabToken = 0
+local IsUGCScanning = false
+local UGCsLoaded = false
+
+local function LoadUGCsData(forceRefresh)
+	if UGCsLoaded and not forceRefresh then return end
+	if IsUGCScanning then return end
+	IsUGCScanning = true
+	UGCsLoaded = true
+	
+	CurrentUGCTabToken = CurrentUGCTabToken + 1
+	local myToken = CurrentUGCTabToken
+	
+	ItemsRefreshBtn.Text = "Scanning..."
+	for _, v in pairs(UGCScrollContainer:GetChildren()) do if v:IsA("Frame") then v:Destroy() end end
+	StatusText.Text = "Checking Universal API for " .. UGCCurrentFilter .. " UGCs..."
+	StatusText.Visible = true
+	
+	local creatorId = game.CreatorId
+	local creatorType = game.CreatorType == Enum.CreatorType.Group and "Group" or "User"
+	local shortGameName = string.sub(game.Name, 1, 15)
+	local universeId = game.GameId
+	local placeId = game.PlaceId
+	
+	local url1 = "https://catalog.roproxy.com/v1/search/items?category=All&creatorTargetId="..creatorId.."&creatorType="..creatorType.."&sortType=Updated&sortOrder=Desc&limit=120"
+	local url2 = "https://catalog.roproxy.com/v1/search/items?category=All&keyword="..HttpService:UrlEncode(shortGameName).."&sortType=Updated&sortOrder=Desc&limit=60"
+	local url3 = "https://catalog.roproxy.com/v1/search/items?category=All&keyword="..tostring(universeId).."&sortType=Updated&sortOrder=Desc&limit=60"
+	local url4 = "https://catalog.roproxy.com/v1/search/items?category=All&keyword="..tostring(placeId).."&sortType=Updated&sortOrder=Desc&limit=60"
+	
+	task.spawn(function()
+		local inGameNums = CollectInGameNumbers()
+		local itemsToProcess = {}
+		local addedIds = {}
+		
+		local function fetchURL(url)
+			local s, res = pcall(function() return game:HttpGet(url) end)
+			if CurrentUGCTabToken ~= myToken then return end
+			if s and res and type(res) == "string" then
+				local ds, decoded = pcall(function() return HttpService:JSONDecode(res) end)
+				if ds and decoded and decoded.data then
+					for _, item in ipairs(decoded.data) do
+						if not addedIds[item.id] then
+							addedIds[item.id] = true
+							item.fromAPI = true
+							table.insert(itemsToProcess, item)
+						end
+					end
+				end
+			end
+		end
+
+		fetchURL(url1)
+		fetchURL(url2)
+		fetchURL(url3)
+		fetchURL(url4)
+		
+		for id, _ in pairs(inGameNums) do
+			if not addedIds[id] then
+				addedIds[id] = true
+				table.insert(itemsToProcess, {id = id, itemType = "Asset", fromAPI = false})
+			end
+		end
+		
+		if CurrentUGCTabToken ~= myToken then IsUGCScanning = false return end
+		StatusText.Visible = false
+		
+		local foundCount = 0
+		
+		for _, item in ipairs(itemsToProcess) do
+			task.spawn(function()
+				if CurrentUGCTabToken ~= myToken then return end
+				
+				local isBundle = (item.itemType == "Bundle")
+				local infoType = isBundle and Enum.InfoType.Bundle or Enum.InfoType.Asset
+				
+				local success, info = pcall(function() 
+					return MarketplaceService:GetProductInfo(item.id, infoType) 
+				end)
+				
+				if success and info then
+					local allowedTypes = {[8]=true,[41]=true,[42]=true,[43]=true,[44]=true,[45]=true,[46]=true,[47]=true,[64]=true,[65]=true,[66]=true,[67]=true,[68]=true,[69]=true,[70]=true,[71]=true,[72]=true}
+					local isAccessoryOrBundle = isBundle or allowedTypes[info.AssetTypeId]
+					
+					if isAccessoryOrBundle then
+						
+						local isLimited = info.IsLimited or info.IsLimitedUnique
+						local isSameCreator = false
+						if info.Creator and tostring(info.Creator.CreatorTargetId) == tostring(creatorId) then
+							isSameCreator = true
+						end
+						
+						local price = info.PriceInRobux
+						local isFree = (price == 0)
+						local isPaid = (price ~= nil and price > 0)
+						
+						if price == nil then
+							if info.IsForSale == false and string.find((info.Description or ""):lower(), "free") then
+								isFree = true
+							else isPaid = true end
+						end
+						
+						local itemCreatorType = info.Creator and info.Creator.CreatorType or ""
+						local itemCreatorId = info.Creator and tostring(info.Creator.CreatorTargetId) or ""
+						local passFilter = false
+
+						if UGCCurrentFilter == "Free" and isFree then passFilter = true
+						elseif UGCCurrentFilter == "Paid" and isPaid then passFilter = true
+						elseif UGCCurrentFilter == "Creator" and itemCreatorType == "User" and itemCreatorId == tostring(game.CreatorId) then passFilter = true
+						elseif UGCCurrentFilter == "Group" and itemCreatorType == "Group" and itemCreatorId == tostring(game.CreatorId) then passFilter = true end
+						
+						local isConfirmed = false
+						if UGCCurrentFilter == "Free" or UGCCurrentFilter == "Paid" then
+							if inGameNums[item.id] then isConfirmed = true 
+							elseif item.fromAPI then
+								local desc = info.Description or ""
+								local name = info.Name or ""
+								if string.find(desc, tostring(game.PlaceId)) or string.find(desc, tostring(game.GameId)) then isConfirmed = true
+								elseif isLimited and isSameCreator then isConfirmed = true
+								elseif #game.Name > 4 and string.find(name:lower(), string.sub(game.Name:lower(), 1, 10)) then isConfirmed = true
+								else
+									if IsLinkedToUniverse(item.id) then isConfirmed = true end
+								end
+							end
+						else isConfirmed = true end
+						
+						if isConfirmed and passFilter then
+							foundCount = foundCount + 1
+							local finalPrice = price or 0
+							local stock = info.Remaining
+							if not isLimited then stock = "Unlimited" elseif stock == nil or stock == "" then stock = "Unlimited" end
+							local statusText = info.IsForSale and "Onsale" or "Offsale"
+							local priceText = isFree and "Free" or (tostring(finalPrice) .. " R$")
+							local extraText = statusText .. " | " .. priceText .. " | Stock: " .. tostring(stock)
+							
+							if CurrentUGCTabToken == myToken then
+								CreateUGCBadgeCard(UGCScrollContainer, isBundle and "Bundle" or "UGC", item.id, info.Name or item.name or "Unknown", extraText)
+							end
+						end
+					end
+				end
+			end)
+			task.wait(0.02) 
+		end
+		
+		task.wait(2.5) 
+		if CurrentUGCTabToken == myToken then
+			if foundCount == 0 then
+				StatusText.Text = "No " .. UGCCurrentFilter .. " UGCs found."
+				StatusText.Visible = true
+			end
+			IsUGCScanning = false
+			ItemsRefreshBtn.Text = "Refresh"
+		end
+	end)
+end
+
+DropdownBtn.MouseButton1Click:Connect(function() DropdownList.Visible = not DropdownList.Visible end)
+FreeOpt.MouseButton1Click:Connect(function()
+	if UGCCurrentFilter == "Free" then DropdownList.Visible = false return end
+	UGCCurrentFilter = "Free"
+	DropdownBtn.Text = "Free UGC ▼"
+	DropdownList.Visible = false
+	LoadUGCsData(true)
+end)
+PaidOpt.MouseButton1Click:Connect(function()
+	if UGCCurrentFilter == "Paid" then DropdownList.Visible = false return end
+	UGCCurrentFilter = "Paid"
+	DropdownBtn.Text = "Paid UGC ▼"
+	DropdownList.Visible = false
+	LoadUGCsData(true)
+end)
+CreatorOpt.MouseButton1Click:Connect(function()
+	if UGCCurrentFilter == "Creator" then DropdownList.Visible = false return end
+	UGCCurrentFilter = "Creator"
+	DropdownBtn.Text = "Creator Store ▼"
+	DropdownList.Visible = false
+	LoadUGCsData(true)
+end)
+GroupOpt.MouseButton1Click:Connect(function()
+	if UGCCurrentFilter == "Group" then DropdownList.Visible = false return end
+	UGCCurrentFilter = "Group"
+	DropdownBtn.Text = "Group Store ▼"
+	DropdownList.Visible = false
+	LoadUGCsData(true)
+end)
+
+local CurrentBadgeTabToken = 0
+local IsBadgesScanning = false
+local BadgesLoaded = false
+
+local function LoadBadgesData(forceRefresh)
+	if BadgesLoaded and not forceRefresh then return end
+	if IsBadgesScanning then return end
+	IsBadgesScanning = true
+	BadgesLoaded = true
+	CurrentBadgeTabToken = CurrentBadgeTabToken + 1
+	local myToken = CurrentBadgeTabToken
+	
+	ItemsRefreshBtn.Text = "Scanning..."
+	for _, v in pairs(BadgeScrollContainer:GetChildren()) do if v:IsA("Frame") then v:Destroy() end end
+	StatusText.Text = "Scanning for Badges..."
+	StatusText.Visible = true
+	local url = "https://badges.roproxy.com/v1/universes/" .. game.GameId .. "/badges?limit=100&sortOrder=Asc"
+	task.spawn(function()
+		local s, res = pcall(function() return game:HttpGet(url) end)
+		if CurrentBadgeTabToken ~= myToken then return end
+		local count = 0
+		if s and res then
+			local ds, decoded = pcall(function() return HttpService:JSONDecode(res) end)
+			if ds and decoded and decoded.data then
+				for _, badge in pairs(decoded.data) do
+					if CurrentBadgeTabToken ~= myToken then return end
+					CreateUGCBadgeCard(BadgeScrollContainer, "Badge", badge.id, badge.name, "Type: Badge")
+					count = count + 1
+				end
+			end
+		end
+		if CurrentBadgeTabToken == myToken then
+			if count > 0 then StatusText.Visible = false StatusText.Text = "" else StatusText.Text = "No Badges found." StatusText.Visible = true end
+			IsBadgesScanning = false
+			ItemsRefreshBtn.Text = "Refresh"
+		end
+	end)
+end
+
+ItemsRefreshBtn.MouseButton1Click:Connect(function()
+	if ActiveItemsTab == "UGC" then LoadUGCsData(true) else LoadBadgesData(true) end
+end)
+
+local UGCTabBtn = Instance.new("TextButton")
+UGCTabBtn.Size = UDim2.new(0.5, -4, 1, 0)
+UGCTabBtn.Position = UDim2.new(0, 0, 0, 0)
+UGCTabBtn.BackgroundColor3 = Color3.fromRGB(100, 30, 150)
+UGCTabBtn.Text = "UGCs"
+UGCTabBtn.TextColor3 = Color3.new(1,1,1)
+UGCTabBtn.Font = Enum.Font.GothamBold
+UGCTabBtn.TextSize = 13
+UGCTabBtn.ZIndex = 6
+UGCTabBtn.Parent = ItemsTabFrame
+Instance.new("UICorner", UGCTabBtn).CornerRadius = UDim.new(0, 6)
+AddStroke(UGCTabBtn, Color3.fromRGB(150, 40, 200), 1)
+
+local BadgeTabBtn = Instance.new("TextButton")
+BadgeTabBtn.Size = UDim2.new(0.5, -4, 1, 0)
+BadgeTabBtn.Position = UDim2.new(0.5, 4, 0, 0)
+BadgeTabBtn.BackgroundColor3 = Color3.fromRGB(40, 15, 70)
+BadgeTabBtn.Text = "Badges"
+BadgeTabBtn.TextColor3 = Color3.new(1,1,1)
+BadgeTabBtn.Font = Enum.Font.GothamBold
+BadgeTabBtn.TextSize = 13
+BadgeTabBtn.ZIndex = 6
+BadgeTabBtn.Parent = ItemsTabFrame
+Instance.new("UICorner", BadgeTabBtn).CornerRadius = UDim.new(0, 6)
+AddStroke(BadgeTabBtn, Color3.fromRGB(80, 30, 120), 1)
+
+UGCTabBtn.MouseButton1Click:Connect(function()
+	ActiveItemsTab = "UGC"
+	UGCTabBtn.BackgroundColor3 = Color3.fromRGB(100, 30, 150)
+	BadgeTabBtn.BackgroundColor3 = Color3.fromRGB(40, 15, 70)
+	AddStroke(UGCTabBtn, Color3.fromRGB(150, 40, 200), 1)
+	AddStroke(BadgeTabBtn, Color3.fromRGB(80, 30, 120), 1)
+	DropdownBtn.Visible = true
+	ItemsRefreshBtn.Position = UDim2.new(1, -210, 0, 0)
+	UGCScrollContainer.Visible = true
+	BadgeScrollContainer.Visible = false
+	StatusText.Visible = false 
+	LoadUGCsData(false)
+end)
+
+BadgeTabBtn.MouseButton1Click:Connect(function()
+	ActiveItemsTab = "Badge"
+	BadgeTabBtn.BackgroundColor3 = Color3.fromRGB(100, 30, 150)
+	UGCTabBtn.BackgroundColor3 = Color3.fromRGB(40, 15, 70)
+	AddStroke(BadgeTabBtn, Color3.fromRGB(150, 40, 200), 1)
+	AddStroke(UGCTabBtn, Color3.fromRGB(80, 30, 120), 1)
+	DropdownBtn.Visible = false
+	DropdownList.Visible = false
+	ItemsRefreshBtn.Position = UDim2.new(1, -80, 0, 0) 
+	UGCScrollContainer.Visible = false
+	BadgeScrollContainer.Visible = true
+	StatusText.Visible = false
+	LoadBadgesData(false)
+end)
+
+-- ==========================================
+-- GAMES / MINI-GAMES / PORTALLAR BÖLÜMÜ 
+-- ==========================================
+local GamesContainer = Instance.new("Frame")
+GamesContainer.Size = UDim2.new(1, -95, 1, -40)
+GamesContainer.Position = UDim2.new(0, 95, 0, 40)
+GamesContainer.BackgroundTransparency = 1
+GamesContainer.Visible = false
+GamesContainer.ZIndex = 5
+GamesContainer.Parent = MainFrame
+
+local GamesControlsFrame = Instance.new("Frame")
+GamesControlsFrame.Size = UDim2.new(1, -20, 0, 28)
+GamesControlsFrame.Position = UDim2.new(0, 10, 0, 8)
+GamesControlsFrame.BackgroundTransparency = 1
+GamesControlsFrame.ZIndex = 7
+GamesControlsFrame.Parent = GamesContainer
+
+local GamesRefreshBtn = Instance.new("TextButton")
+GamesRefreshBtn.Size = UDim2.new(0, 80, 1, 0)
+GamesRefreshBtn.Position = UDim2.new(1, -80, 0, 0)
+GamesRefreshBtn.BackgroundColor3 = Color3.fromRGB(40, 15, 70)
+GamesRefreshBtn.Text = "Refresh"
+GamesRefreshBtn.TextColor3 = Color3.new(1,1,1)
+GamesRefreshBtn.Font = Enum.Font.GothamBold
+GamesRefreshBtn.TextSize = 12
+GamesRefreshBtn.ZIndex = 7
+GamesRefreshBtn.Parent = GamesControlsFrame
+Instance.new("UICorner", GamesRefreshBtn).CornerRadius = UDim.new(0, 10)
+AddStroke(GamesRefreshBtn, Color3.fromRGB(120, 40, 200), 1)
+
+local GamesStatusText = Instance.new("TextLabel")
+GamesStatusText.Size = UDim2.new(1, 0, 0, 30)
+GamesStatusText.Position = UDim2.new(0, 0, 0.5, 0)
+GamesStatusText.BackgroundTransparency = 1
+GamesStatusText.Text = "Fetching Mini-Games & Portals..."
+GamesStatusText.TextColor3 = Color3.fromRGB(200, 200, 200)
+GamesStatusText.Font = Enum.Font.Gotham
+GamesStatusText.TextSize = 14
+GamesStatusText.ZIndex = 6
+GamesStatusText.Parent = GamesContainer
+
+local GamesScrollContainer = Instance.new("ScrollingFrame")
+GamesScrollContainer.Size = UDim2.new(1, -20, 1, -52)
+GamesScrollContainer.Position = UDim2.new(0, 10, 0, 42)
+GamesScrollContainer.BackgroundTransparency = 1
+GamesScrollContainer.BorderSizePixel = 0
+GamesScrollContainer.ScrollBarThickness = 4
+GamesScrollContainer.ScrollBarImageColor3 = Color3.fromRGB(150, 40, 200)
+GamesScrollContainer.ZIndex = 6
+GamesScrollContainer.CanvasSize = UDim2.new(0,0,0,0)
+GamesScrollContainer.ClipsDescendants = true
+GamesScrollContainer.Parent = GamesContainer
+
+local GamesLayout = Instance.new("UIListLayout")
+GamesLayout.Padding = UDim.new(0, 8)
+GamesLayout.SortOrder = Enum.SortOrder.LayoutOrder
+GamesLayout.Parent = GamesScrollContainer
+GamesLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+	GamesScrollContainer.CanvasSize = UDim2.new(0, 0, 0, GamesLayout.AbsoluteContentSize.Y + 10)
+end)
+
+local function CreateGameCard(id, name, thumbUrl)
+	local Card = Instance.new("Frame")
+	Card.Size = UDim2.new(1, 0, 0, 55)
+	Card.BackgroundColor3 = Color3.fromRGB(25, 15, 30)
+	Card.ZIndex = 6
+	Card.Parent = GamesScrollContainer
+	Instance.new("UICorner", Card).CornerRadius = UDim.new(0, 6)
+	AddStroke(Card, Color3.fromRGB(100, 40, 150), 1)
+
+	local Icon = Instance.new("ImageLabel")
+	Icon.Size = UDim2.new(0, 35, 0, 35)
+	Icon.Position = UDim2.new(0, 10, 0.5, -17.5)
+	Icon.BackgroundTransparency = 1
+	Icon.ZIndex = 7
+	Icon.Image = thumbUrl or "rbxassetid://110803789420086"
+	Icon.Parent = Card
+
+	local NameLbl = Instance.new("TextLabel")
+	NameLbl.Size = UDim2.new(1, -200, 0, 18)
+	NameLbl.Position = UDim2.new(0, 55, 0, 8)
+	NameLbl.BackgroundTransparency = 1
+	NameLbl.Text = name
+	NameLbl.TextColor3 = Color3.new(1,1,1)
+	NameLbl.TextXAlignment = Enum.TextXAlignment.Left
+	NameLbl.Font = Enum.Font.GothamSemibold
+	NameLbl.TextSize = 11
+	NameLbl.TextTruncate = Enum.TextTruncate.AtEnd
+	NameLbl.ZIndex = 7
+	NameLbl.Parent = Card
+
+	local ExtraLbl = Instance.new("TextLabel")
+	ExtraLbl.Size = UDim2.new(1, -200, 0, 15)
+	ExtraLbl.Position = UDim2.new(0, 55, 0, 28)
+	ExtraLbl.BackgroundTransparency = 1
+	ExtraLbl.Text = "Place ID: " .. tostring(id)
+	ExtraLbl.TextColor3 = Color3.fromRGB(150, 255, 150)
+	ExtraLbl.TextXAlignment = Enum.TextXAlignment.Left
+	ExtraLbl.Font = Enum.Font.Gotham
+	ExtraLbl.TextSize = 10
+	ExtraLbl.TextTruncate = Enum.TextTruncate.AtEnd
+	ExtraLbl.ZIndex = 7
+	ExtraLbl.Parent = Card
+
+	local TeleportBtn = Instance.new("TextButton")
+	TeleportBtn.Size = UDim2.new(0, 60, 0, 24)
+	TeleportBtn.AnchorPoint = Vector2.new(1, 0.5)
+	TeleportBtn.Position = UDim2.new(1, -5, 0.5, 0)
+	TeleportBtn.BackgroundColor3 = Color3.fromRGB(0, 110, 200)
+	TeleportBtn.Text = "Teleport"
+	TeleportBtn.TextColor3 = Color3.new(1,1,1)
+	TeleportBtn.Font = Enum.Font.GothamBold
+	TeleportBtn.TextSize = 10
+	TeleportBtn.ZIndex = 7
+	TeleportBtn.Parent = Card
+	Instance.new("UICorner", TeleportBtn).CornerRadius = UDim.new(0, 4)
+	AddStroke(TeleportBtn, Color3.fromRGB(0, 140, 255), 1)
+
+	TeleportBtn.MouseButton1Click:Connect(function()
+		if TeleportBtn.Text == "Joining..." then return end
+		TeleportBtn.Text = "Joining..."
+		TeleportBtn.BackgroundColor3 = Color3.fromRGB(0, 160, 80)
+		
+		task.spawn(function()
+			local startTick = tick()
+			while tick() - startTick < 3 do
+				pcall(function() TeleportService:Teleport(id, LocalPlayer) end)
+				task.wait(0.5)
+			end
+			-- 3 saniye sonra dur ve butonu eski haline getir
+			if TeleportBtn then
+				TeleportBtn.Text = "Teleport"
+				TeleportBtn.BackgroundColor3 = Color3.fromRGB(0, 110, 200)
+			end
+		end)
+	end)
+
+	local CopyBtn = Instance.new("TextButton")
+	CopyBtn.Size = UDim2.new(0, 75, 0, 24)
+	CopyBtn.AnchorPoint = Vector2.new(1, 0.5)
+	CopyBtn.Position = UDim2.new(1, -70, 0.5, 0)
+	CopyBtn.BackgroundColor3 = Color3.fromRGB(50, 30, 60)
+	CopyBtn.Text = "Copy Script"
+	CopyBtn.TextColor3 = Color3.new(1,1,1)
+	CopyBtn.Font = Enum.Font.GothamBold
+	CopyBtn.TextSize = 10
+	CopyBtn.ZIndex = 7
+	CopyBtn.Parent = Card
+	Instance.new("UICorner", CopyBtn).CornerRadius = UDim.new(0, 4)
+	AddStroke(CopyBtn, Color3.fromRGB(100, 40, 120), 1)
+
+	CopyBtn.MouseButton1Click:Connect(function()
+		setclipboard('game:GetService("TeleportService"):Teleport(' .. tostring(id) .. ')')
+		CopyBtn.Text = "Copied!"
+		CopyBtn.TextColor3 = Color3.fromRGB(100, 255, 100)
+		task.wait(1.5)
+		CopyBtn.Text = "Copy Script"
+		CopyBtn.TextColor3 = Color3.new(1,1,1)
+	end)
+end
+
+local CurrentGameTabToken = 0
+local GamesLoaded = false
+local IsGamesScanning = false
+
+local function LoadGamesData(forceRefresh)
+	if GamesLoaded and not forceRefresh then return end
+	if IsGamesScanning then return end
+	IsGamesScanning = true
+	GamesLoaded = true
+
+	CurrentGameTabToken = CurrentGameTabToken + 1
+	local myToken = CurrentGameTabToken
+
+	GamesRefreshBtn.Text = "Scanning..."
+	for _, v in pairs(GamesScrollContainer:GetChildren()) do if v:IsA("Frame") then v:Destroy() end end
+	GamesStatusText.Text = "Fetching Portals & Games..."
+	GamesStatusText.Visible = true
+
+	task.spawn(function()
+		local placeIdsToProcess = {}
+		local addedPlaces = {}
+
+		local function addPlace(pId, isTrusted)
+			if not addedPlaces[pId] then
+				addedPlaces[pId] = true
+				table.insert(placeIdsToProcess, {id = pId, trusted = isTrusted})
+			end
+		end
+
+		-- 1. Universe API Taraması (Güvenilir Kaynak)
+		local url = "https://develop.roproxy.com/v1/universes/" .. game.GameId .. "/places?isUniverseCreation=false&limit=100&sortOrder=Asc"
+		local s, res = pcall(function() return game:HttpGet(url) end)
+		if s and res then
+			local ds, decoded = pcall(function() return HttpService:JSONDecode(res) end)
+			if ds and decoded and decoded.data then
+				for _, placeInfo in pairs(decoded.data) do
+					addPlace(placeInfo.id, true)
+				end
+			end
+		end
+
+		-- 2. Işınlanma Hook ile Yakalanan Portallar (Güvenilir Kaynak - Oyuncu denedi)
+		for pId, _ in pairs(CapturedPortals) do
+			addPlace(pId, true)
+		end
+
+		-- 3. Oyun İçi Memory Taraması (STRICT FILTER: Yalnızca Aynı Yapımcıysa Ekler)
+		local inGameNums = CollectInGameNumbers()
+		for pId, _ in pairs(inGameNums) do
+			addPlace(pId, false)
+		end
+
+		local count = 0
+
+		for _, data in ipairs(placeIdsToProcess) do
+			task.spawn(function()
+				if CurrentGameTabToken ~= myToken then return end
+				
+				local pId = data.id
+				local success, info = pcall(function() return MarketplaceService:GetProductInfo(pId, Enum.InfoType.Asset) end)
+				
+				if success and info and info.AssetTypeId == 9 then
+					local isValid = false
+					
+					-- Eğer API veya Portal verisinden geldiyse direkt onaylanır
+					if data.trusted then
+						isValid = true
+					else
+						-- KUSURSUZ FİLTRE: Eğer sadece oyun içi sayı taramasında bulunduysa,
+						-- Oyunun orijinal yapımcısı ile bu sayının yapımcısı aynı Mı? kontrol edilir.
+						-- Aynı değilse, çöptür eklenmez.
+						if info.Creator and tostring(info.Creator.CreatorTargetId) == tostring(game.CreatorId) then
+							isValid = true
+						end
+					end
+
+					if isValid then
+						local pName = info.Name or "Unknown Game"
+						local iconId = (info.IconImageAssetId and info.IconImageAssetId > 0) and info.IconImageAssetId or pId
+						local thumbUrl = "rbxthumb://type=Asset&id=" .. iconId .. "&w=150&h=150"
+						
+						if CurrentGameTabToken == myToken then
+							CreateGameCard(pId, pName, thumbUrl)
+							count = count + 1
+						end
+					end
+				end
+			end)
+			task.wait(0.02)
+		end
+
+		task.wait(2.5)
+		if CurrentGameTabToken == myToken then
+			if count > 0 then
+				GamesStatusText.Visible = false
+			else
+				GamesStatusText.Text = "No Mini-Games or Portals found."
+				GamesStatusText.Visible = true
+			end
+			IsGamesScanning = false
+			GamesRefreshBtn.Text = "Refresh"
+		end
+	end)
+end
+
+GamesRefreshBtn.MouseButton1Click:Connect(function()
+	LoadGamesData(true)
+end)
+
+-- ==========================================
+-- MENÜ GEÇİŞ GÜNCELLEMELERİ
+-- ==========================================
+RemotesSecBtn.MouseButton1Click:Connect(function()
+	RemotesSecBtn.BackgroundColor3 = Color3.fromRGB(100, 30, 150)
+	RemotesSecBtn.TextColor3 = Color3.new(1,1,1)
+	RemotesSecStroke.Color = Color3.fromRGB(150, 40, 200)
+
+	ItemsSecBtn.BackgroundColor3 = Color3.fromRGB(40, 15, 70)
+	ItemsSecBtn.TextColor3 = Color3.fromRGB(200, 150, 255)
+	ItemsSecStroke.Color = Color3.fromRGB(120, 40, 220)
+	
+	GamesSecBtn.BackgroundColor3 = Color3.fromRGB(40, 15, 70)
+	GamesSecBtn.TextColor3 = Color3.fromRGB(200, 150, 255)
+	GamesSecStroke.Color = Color3.fromRGB(120, 40, 220)
+
+	ControlContainer.Visible = true
+	ListContainer.Visible = true
+	ItemsContainer.Visible = false
+	GamesContainer.Visible = false
+end)
+
+ItemsSecBtn.MouseButton1Click:Connect(function()
+	ItemsSecBtn.BackgroundColor3 = Color3.fromRGB(100, 30, 150)
+	ItemsSecBtn.TextColor3 = Color3.new(1,1,1)
+	ItemsSecStroke.Color = Color3.fromRGB(150, 40, 200)
+
+	RemotesSecBtn.BackgroundColor3 = Color3.fromRGB(40, 15, 70)
+	RemotesSecBtn.TextColor3 = Color3.fromRGB(200, 150, 255)
+	RemotesSecStroke.Color = Color3.fromRGB(120, 40, 220)
+	
+	GamesSecBtn.BackgroundColor3 = Color3.fromRGB(40, 15, 70)
+	GamesSecBtn.TextColor3 = Color3.fromRGB(200, 150, 255)
+	GamesSecStroke.Color = Color3.fromRGB(120, 40, 220)
+
+	ControlContainer.Visible = false
+	ListContainer.Visible = false
+	ItemsContainer.Visible = true
+	GamesContainer.Visible = false
+
+	if ActiveItemsTab == "UGC" then LoadUGCsData(false) else LoadBadgesData(false) end
+end)
+
+GamesSecBtn.MouseButton1Click:Connect(function()
+	GamesSecBtn.BackgroundColor3 = Color3.fromRGB(100, 30, 150)
+	GamesSecBtn.TextColor3 = Color3.new(1,1,1)
+	GamesSecStroke.Color = Color3.fromRGB(150, 40, 200)
+
+	RemotesSecBtn.BackgroundColor3 = Color3.fromRGB(40, 15, 70)
+	RemotesSecBtn.TextColor3 = Color3.fromRGB(200, 150, 255)
+	RemotesSecStroke.Color = Color3.fromRGB(120, 40, 220)
+
+	ItemsSecBtn.BackgroundColor3 = Color3.fromRGB(40, 15, 70)
+	ItemsSecBtn.TextColor3 = Color3.fromRGB(200, 150, 255)
+	ItemsSecStroke.Color = Color3.fromRGB(120, 40, 220)
+
+	ControlContainer.Visible = false
+	ListContainer.Visible = false
+	ItemsContainer.Visible = false
+	GamesContainer.Visible = true
+
+	LoadGamesData(false)
+end)
+
+-- ==========================================
+-- EFSANEVİ AÇILIŞ EKRANI 
+-- ==========================================
+local SplashFrame = Instance.new("Frame")
+SplashFrame.Size = UDim2.new(0.65, 0, 0.94, 0)
+SplashFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+SplashFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+SplashFrame.BackgroundColor3 = Color3.fromRGB(15, 12, 22)
+SplashFrame.BorderSizePixel = 0
+SplashFrame.ClipsDescendants = true
+SplashFrame.Parent = ScreenGui
+
+local SplashCorner = Instance.new("UICorner")
+SplashCorner.CornerRadius = UDim.new(0, 8)
+SplashCorner.Parent = SplashFrame
+AddStroke(SplashFrame, Color3.fromRGB(120, 30, 200), 2)
+
+local SplashMatrix = Instance.new("Frame")
+SplashMatrix.Name = "SplashMatrix"
+SplashMatrix.Size = UDim2.new(1, 0, 1, 0)
+SplashMatrix.BackgroundTransparency = 1
+SplashMatrix.ZIndex = 20
+SplashMatrix.Parent = SplashFrame
+StartMatrixEffect(SplashMatrix)
+
+local SplashTitle = Instance.new("TextLabel")
+SplashTitle.Size = UDim2.new(1, 0, 0, 40)
+SplashTitle.Position = UDim2.new(0, 0, 0, 35) 
+SplashTitle.BackgroundTransparency = 1
+SplashTitle.RichText = true
+SplashTitle.Text = "<font tracking=\"4\">REMOTE DETECTOR V1</font>"
+SplashTitle.TextColor3 = Color3.fromRGB(210, 140, 255)
+SplashTitle.Font = Enum.Font.Michroma
+SplashTitle.TextSize = 24
+SplashTitle.ZIndex = 30
+SplashTitle.Parent = SplashFrame
+
+local TitleGlow = AddStroke(SplashTitle, Color3.fromRGB(100, 20, 180), 1)
+TitleGlow.ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual
+
+local ShineFrame = Instance.new("Frame")
+ShineFrame.Size = UDim2.new(1.5, 0, 1.5, 0)
+ShineFrame.Position = UDim2.new(-0.25, 0, -0.25, 0)
+ShineFrame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+ShineFrame.BorderSizePixel = 0
+ShineFrame.ZIndex = 25
+ShineFrame.Parent = SplashFrame
+
+local ShineGradient = Instance.new("UIGradient")
+ShineGradient.Transparency = NumberSequence.new({
+	NumberSequenceKeypoint.new(0, 1),
+	NumberSequenceKeypoint.new(0.48, 1),
+	NumberSequenceKeypoint.new(0.5, 0.1),
+	NumberSequenceKeypoint.new(0.52, 1),
+	NumberSequenceKeypoint.new(1, 1)
+})
+ShineGradient.Rotation = 45
+ShineGradient.Parent = ShineFrame
+
+-- HAREKETLİ NEON IŞIK
+local NeonGlow = Instance.new("ImageLabel")
+NeonGlow.Size = UDim2.new(0, 155, 0, 155) 
+NeonGlow.Position = UDim2.new(0.5, 0, 0.45, 0)
+NeonGlow.AnchorPoint = Vector2.new(0.5, 0.5)
+NeonGlow.BackgroundTransparency = 1
+NeonGlow.Image = "rbxassetid://131872895" 
+NeonGlow.ImageColor3 = Color3.fromRGB(180, 50, 255) 
+NeonGlow.ZIndex = 29
+NeonGlow.Parent = SplashFrame
+
+-- LOGO
+local SplashLogo = Instance.new("ImageLabel")
+SplashLogo.Size = UDim2.new(0, 130, 0, 130)
+SplashLogo.Position = UDim2.new(0.5, 0, 0.45, 0)
+SplashLogo.AnchorPoint = Vector2.new(0.5, 0.5)
+SplashLogo.BackgroundTransparency = 1
+SplashLogo.Image = "rbxassetid://91809235957449"
+SplashLogo.ZIndex = 30
+SplashLogo.Parent = SplashFrame
+
+-- LOADING YAZISI 
+local LoadText = Instance.new("TextLabel")
+LoadText.Size = UDim2.new(1, 0, 0, 30)
+LoadText.Position = UDim2.new(0, 0, 0.65, 0) 
+LoadText.BackgroundTransparency = 1
+LoadText.RichText = true
+LoadText.Text = "<font tracking=\"6\">L O A D I N G . . .</font>"
+LoadText.TextColor3 = Color3.fromRGB(240, 200, 255)
+LoadText.Font = Enum.Font.GothamMedium
+LoadText.TextSize = 16
+LoadText.ZIndex = 30
+LoadText.Parent = SplashFrame
+
+-- LOADING BAR 
+local LoadBarOuter = Instance.new("Frame")
+LoadBarOuter.Size = UDim2.new(0.5, 0, 0, 6) 
+LoadBarOuter.Position = UDim2.new(0.25, 0, 0.75, 0) 
+LoadBarOuter.BackgroundColor3 = Color3.fromRGB(25, 10, 40)
+LoadBarOuter.BorderSizePixel = 0
+LoadBarOuter.ZIndex = 30
+LoadBarOuter.Parent = SplashFrame
+Instance.new("UICorner", LoadBarOuter).CornerRadius = UDim.new(1, 0)
+AddStroke(LoadBarOuter, Color3.fromRGB(150, 50, 255), 1)
+
+local LoadBarFill = Instance.new("Frame")
+LoadBarFill.Size = UDim2.new(0, 0, 1, 0)
+LoadBarFill.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+LoadBarFill.BorderSizePixel = 0
+LoadBarFill.ZIndex = 31
+LoadBarFill.Parent = LoadBarOuter
+Instance.new("UICorner", LoadBarFill).CornerRadius = UDim.new(1, 0)
+
+local BarGradient = Instance.new("UIGradient")
+BarGradient.Color = ColorSequence.new({
+	ColorSequenceKeypoint.new(0, Color3.fromRGB(120, 20, 200)),
+	ColorSequenceKeypoint.new(0.5, Color3.fromRGB(220, 150, 255)), 
+	ColorSequenceKeypoint.new(1, Color3.fromRGB(120, 20, 200))
+})
+BarGradient.Parent = LoadBarFill
+local BarGlow = AddStroke(LoadBarFill, Color3.fromRGB(180, 80, 255), 1)
+BarGlow.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+
+local SignatureText = Instance.new("TextLabel")
+SignatureText.Size = UDim2.new(0.5, 0, 0, 20)
+SignatureText.Position = UDim2.new(0, 15, 1, -25)
+SignatureText.TextXAlignment = Enum.TextXAlignment.Left
+SignatureText.BackgroundTransparency = 1
+SignatureText.RichText = true
+SignatureText.Text = "<font tracking=\"1\">developed by oxireun</font>"
+SignatureText.TextColor3 = Color3.fromRGB(180, 100, 255)
+SignatureText.Font = Enum.Font.Jura
+SignatureText.TextSize = 13 
+SignatureText.ZIndex = 30
+SignatureText.Parent = SplashFrame
+
+task.spawn(function()
+	local filling = true
+	
+	task.spawn(function()
+		while filling do
+			TweenService:Create(LoadText, TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {TextTransparency = 0.6}):Play()
+			task.wait(0.5)
+			if filling then
+				TweenService:Create(LoadText, TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {TextTransparency = 0}):Play()
+				task.wait(0.5)
+			end
+		end
+	end)
+
+	task.spawn(function()
+		while filling do
+			BarGradient.Offset = Vector2.new(-1, 0)
+			local gradTween = TweenService:Create(BarGradient, TweenInfo.new(0.8, Enum.EasingStyle.Linear), {Offset = Vector2.new(1, 0)})
+			gradTween:Play()
+			gradTween.Completed:Wait()
+		end
+	end)
+
+	local shineActive = true
+	task.spawn(function()
+		while shineActive do
+			ShineGradient.Offset = Vector2.new(-1, 0)
+			local shineTween = TweenService:Create(ShineGradient, TweenInfo.new(1.2, Enum.EasingStyle.Linear), {Offset = Vector2.new(1, 0)})
+			shineTween:Play()
+			shineTween.Completed:Wait()
+			task.wait(0.2)
+		end
+	end)
+	
+	task.spawn(function()
+		local rot = 0
+		while shineActive do
+			rot = (rot + 2) % 360
+			NeonGlow.Rotation = rot
+			NeonGlow.ImageTransparency = 0.2 + (math.sin(tick() * 3) * 0.1)
+			task.wait(0.02)
+		end
+	end)
+
+	local loadTween = TweenService:Create(LoadBarFill, TweenInfo.new(2, Enum.EasingStyle.Linear), {Size = UDim2.new(1, 0, 1, 0)})
+	loadTween:Play()
+	loadTween.Completed:Wait()
+	
+	filling = false 
+	shineActive = false
+	SplashMatrix:Destroy()
+
+	SplashFrame:Destroy()
+	MainFrame.Visible = true
+	MainFrame.Size = UDim2.new(0.65, 0, 0.75, 0)
+	MainFrame:TweenSize(UDim2.new(0.65, 0, 0.94, 0), "Out", "Back", 0.4, true)
+end)
