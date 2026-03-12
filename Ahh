@@ -65,8 +65,10 @@ pcall(function()
 	oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
 		local method = tostring(getnamecallmethod())
 		
+		-- STANDART ANTI-KICK & BAN
 		if method == "Kick" or method == "Ban" or method == "Crash" then return end
 
+		-- BUY BUTONUNA BASILINCA DEVREYE GİREN ANTI-CHEAT BYPASS
 		if IsBuyingUGC and not checkcaller() and (method == "FireServer" or method == "InvokeServer") then
 			local remoteName = string.lower(self.Name)
 			if string.find(remoteName, "ban") or string.find(remoteName, "kick") or string.find(remoteName, "cheat") or string.find(remoteName, "detect") or string.find(remoteName, "report") then
@@ -1169,40 +1171,31 @@ local function IsLinkedToUniverse(assetId)
 	return false
 end
 
--- KUSURSUZ GİZLİ VERİ TARAYICI (Regex ile tüm şifreli metinleri parçalar, Oyuncuları Atlar)
+-- KUSURSUZ GİZLİ VERİ TARAYICI (Regex ile tüm şifreli metinleri parçalar)
 local function CollectInGameNumbers()
 	local nums = {}
 	
 	local function extractIds(text)
 		for match in string.gmatch(tostring(text), "%d+") do
-			if #match >= 8 then
+			if #match >= 7 then
 				local n = tonumber(match)
-				if n and n > 10000000 then nums[n] = true end
+				if n and n > 1000000 then nums[n] = true end
 			end
 		end
-	end
-
-	local characterModels = {}
-	for _, plr in pairs(Players:GetPlayers()) do
-		if plr.Character then characterModels[plr.Character] = true end
-	end
-	
-	local function isDescendantOfCharacter(obj)
-		local current = obj
-		while current and current ~= game do
-			if characterModels[current] then return true end
-			current = current.Parent
-		end
-		return false
 	end
 
 	local function scan(parent)
 		local descendants = parent:GetDescendants()
 		for i, v in ipairs(descendants) do
 			if i % 1500 == 0 then task.wait() end 
-			if isDescendantOfCharacter(v) then continue end
 			
 			pcall(function()
+				-- DİĞER OYUNCULARIN KIYAFETLERİNİ (UGC) TARAMAYI ENGELLER
+				local ancestorModel = v:FindFirstAncestorWhichIsA("Model")
+				if ancestorModel and Players:GetPlayerFromCharacter(ancestorModel) then
+					return 
+				end
+
 				extractIds(v.Name)
 				if v:IsA("StringValue") or v:IsA("IntValue") or v:IsA("NumberValue") then extractIds(v.Value) end
 				for _, attrVal in pairs(v:GetAttributes()) do extractIds(attrVal) end
@@ -1211,30 +1204,13 @@ local function CollectInGameNumbers()
 					extractIds(v.ActionText) 
 				end
 				if v:IsA("TextLabel") or v:IsA("TextButton") or v:IsA("TextBox") then extractIds(v.Text) end
-				
-				if v:IsA("ModuleScript") then
-					local s, req = pcall(require, v)
-					if s and type(req) == "table" then
-						local function scanTab(t, depth)
-							if depth > 3 then return end
-							for k, val in pairs(t) do
-								extractIds(k)
-								if type(val) == "number" or type(val) == "string" then extractIds(val)
-								elseif type(val) == "table" then scanTab(val, depth + 1) end
-							end
-						end
-						scanTab(req, 0)
-					end
-				end
 			end)
 		end
 	end
 	
 	pcall(function() scan(game:GetService("Workspace")) end)
 	pcall(function() scan(game:GetService("ReplicatedStorage")) end)
-	pcall(function() scan(game:GetService("ReplicatedFirst")) end)
 	pcall(function() scan(LocalPlayer:WaitForChild("PlayerGui")) end)
-	pcall(function() scan(LocalPlayer:WaitForChild("PlayerScripts")) end)
 	
 	pcall(function()
 		local gc = getgc(true)
@@ -1366,20 +1342,15 @@ local function LoadUGCsData(forceRefresh)
 						local isConfirmed = false
 						if UGCCurrentFilter == "Free" or UGCCurrentFilter == "Paid" then
 							if item.fromAPI then
-								isConfirmed = true
-							else
-								local isLinked = IsLinkedToUniverse(item.id)
-								local desc = (info.Description or ""):lower()
-								local name = (info.Name or ""):lower()
-								local gameName = game.Name:lower()
-
-								if isLinked then 
-									isConfirmed = true 
-								elseif isSameCreator then
-									isConfirmed = true
-								elseif string.find(desc, tostring(game.PlaceId)) or string.find(desc, tostring(game.GameId)) then
-									isConfirmed = true
-								elseif #gameName > 4 and string.find(name, string.sub(gameName, 1, 10)) then
+								local desc = info.Description or ""
+								local name = info.Name or ""
+								if string.find(desc, tostring(game.PlaceId)) or string.find(desc, tostring(game.GameId)) then isConfirmed = true
+								elseif isLimited and isSameCreator then isConfirmed = true
+								elseif #game.Name > 4 and string.find(name:lower(), string.sub(game.Name:lower(), 1, 10)) then isConfirmed = true
+								elseif IsLinkedToUniverse(item.id) then isConfirmed = true end
+							elseif inGameNums[item.id] then 
+								-- %100 KUSURSUZ FİLTRE: Hafızadan bulduysa, yapımcısı aynı olmalı veya Universe'e bağlı olmalı.
+								if isSameCreator or IsLinkedToUniverse(item.id) then
 									isConfirmed = true
 								end
 							end
@@ -1734,6 +1705,7 @@ local function LoadGamesData(forceRefresh)
 			end
 		end
 
+		-- 1. Universe API Taraması (Güvenilir Kaynak)
 		local url = "https://develop.roproxy.com/v1/universes/" .. game.GameId .. "/places?isUniverseCreation=false&limit=100&sortOrder=Asc"
 		local s, res = pcall(function() return game:HttpGet(url) end)
 		if s and res then
@@ -1744,11 +1716,26 @@ local function LoadGamesData(forceRefresh)
 				end
 			end
 		end
+		
+		-- 2. Geliştiricinin Diğer Oyunlarını Tarama (Büyük İhtimalle Birbirine Bağlı Portallar)
+		local creatorType = game.CreatorType == Enum.CreatorType.Group and "Group" or "User"
+		local devUrl = creatorType == "Group" and "https://games.roproxy.com/v2/groups/"..game.CreatorId.."/games?limit=50&sortOrder=Asc" or "https://games.roproxy.com/v2/users/"..game.CreatorId.."/games?limit=50&sortOrder=Asc"
+		local s2, res2 = pcall(function() return game:HttpGet(devUrl) end)
+		if s2 and res2 then
+			local ds2, decoded2 = pcall(function() return HttpService:JSONDecode(res2) end)
+			if ds2 and decoded2 and decoded2.data then
+				for _, exp in pairs(decoded2.data) do
+					if exp.rootPlaceId then addPlace(exp.rootPlaceId, true) end
+				end
+			end
+		end
 
+		-- 3. Işınlanma Hook ile Yakalanan Portallar (Güvenilir Kaynak - Oyuncu denedi)
 		for pId, _ in pairs(CapturedPortals) do
 			addPlace(pId, true)
 		end
 
+		-- 4. Oyun İçi Memory Taraması (STRICT FILTER)
 		local inGameNums = CollectInGameNumbers()
 		for pId, _ in pairs(inGameNums) do
 			addPlace(pId, false)
@@ -1769,8 +1756,9 @@ local function LoadGamesData(forceRefresh)
 					if data.trusted then
 						isValid = true
 					else
-						-- Eger bir Place (9) memory'de bulunduysa, oyunda oldugu kesindir, ekle.
-						isValid = true
+						if info.Creator and tostring(info.Creator.CreatorTargetId) == tostring(game.CreatorId) then
+							isValid = true
+						end
 					end
 
 					if isValid then
